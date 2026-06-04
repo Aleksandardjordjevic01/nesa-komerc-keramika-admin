@@ -113,7 +113,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
               <Link href="/dashboard" className="flex-shrink-0">
-                <BrandLogo variant="color" height={32} width={130} className="text-xl font-light tracking-tight text-foreground" />
+                <BrandLogo variant="color" height={22} width={90} className="sm:hidden text-xl font-light tracking-tight text-foreground" />
+                <BrandLogo variant="color" height={32} width={130} className="hidden sm:block text-xl font-light tracking-tight text-foreground" />
               </Link>
             </div>
 

@@ -181,7 +181,7 @@ function SmtpSection() {
       </div>
       {err && <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{err}</div>}
       {loading ? (
-        <div className="p-6 grid grid-cols-2 gap-4">{[...Array(6)].map((_, i) => <div key={i} className="h-11 rounded-xl bg-muted animate-pulse" />)}</div>
+        <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">{[...Array(6)].map((_, i) => <div key={i} className="h-11 rounded-xl bg-muted animate-pulse" />)}</div>
       ) : (
         <>
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -287,7 +287,7 @@ function ImapSection() {
       </div>
       {err && <div className="mx-6 mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{err}</div>}
       {loading ? (
-        <div className="p-6 grid grid-cols-2 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="h-11 rounded-xl bg-muted animate-pulse" />)}</div>
+        <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="h-11 rounded-xl bg-muted animate-pulse" />)}</div>
       ) : (
         <>
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -391,12 +391,12 @@ function WorkingHoursSection() {
       ) : (
         <div className="divide-y divide-border">
           {hours.map((h) => (
-            <div key={h.dayOfWeek} className="grid grid-cols-[140px_auto_1fr] items-center gap-x-6 px-6 py-3.5">
+            <div key={h.dayOfWeek} className="grid grid-cols-2 sm:grid-cols-[140px_auto_1fr] items-center gap-x-4 sm:gap-x-6 gap-y-2 px-4 sm:px-6 py-3 sm:py-3.5">
               {/* Day name */}
-              <span className="text-sm font-medium text-foreground">{h.dayName}</span>
+              <span className="col-span-2 sm:col-span-1 text-sm font-medium text-foreground order-1">{h.dayName}</span>
 
               {/* Toggle + status */}
-              <div className="flex items-center gap-3">
+              <div className="col-span-2 sm:col-span-1 flex items-center gap-3 order-3 sm:order-2">
                 <Toggle checked={h.isOpen} onChange={(v) => update(h.dayOfWeek, { isOpen: v })} />
                 <span className={`text-xs font-medium w-16 ${h.isOpen ? 'text-green-600' : 'text-muted-foreground'}`}>
                   {h.isOpen ? 'Otvoreno' : 'Zatvoreno'}
@@ -404,13 +404,13 @@ function WorkingHoursSection() {
               </div>
 
               {/* Time range */}
-              <div className="flex items-center gap-2">
+              <div className="col-span-2 sm:col-span-1 flex items-center gap-2 order-2 sm:order-3">
                 <input
                   type="time"
                   value={h.openTime ?? ''}
                   disabled={!h.isOpen}
                   onChange={(e) => update(h.dayOfWeek, { openTime: e.target.value })}
-                  className="w-32 px-3 py-2 text-sm rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-35 disabled:cursor-not-allowed"
+                  className="flex-1 sm:w-32 sm:flex-none px-3 py-2 text-sm rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-35 disabled:cursor-not-allowed"
                 />
                 <span className="text-muted-foreground text-sm">—</span>
                 <input
@@ -418,7 +418,7 @@ function WorkingHoursSection() {
                   value={h.closeTime ?? ''}
                   disabled={!h.isOpen}
                   onChange={(e) => update(h.dayOfWeek, { closeTime: e.target.value })}
-                  className="w-32 px-3 py-2 text-sm rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-35 disabled:cursor-not-allowed"
+                  className="flex-1 sm:w-32 sm:flex-none px-3 py-2 text-sm rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-35 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -690,7 +690,7 @@ export default function PodesavanjaPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <Settings className="w-5 h-5 text-primary" />

@@ -135,77 +135,123 @@ export default function ReklamacijePage() {
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8 space-y-6">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <MessageSquareDashed className="w-5 h-5 text-primary" />
-            Reklamacije
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">{meta.total} reklamacija ukupno</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <SelectDropdown value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }}
-            options={[{ value: '', label: 'Svi statusi' }, ...Object.entries(STATUS_LABELS).map(([v, l]) => ({ value: v, label: l }))]}
-            className="w-44" />
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
+              <MessageSquareDashed className="w-5 h-5 text-primary" />
+              Reklamacije
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">{meta.total} reklamacija ukupno</p>
+          </div>
           <button onClick={openCreateModal}
-            className="ml-auto flex items-center gap-2 px-4 py-3 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors">
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors sm:shrink-0">
             <Plus className="w-4 h-4" />
             Nova reklamacija
           </button>
         </div>
 
+        {/* Filter */}
+        <SelectDropdown value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }}
+          options={[{ value: '', label: 'Svi statusi' }, ...Object.entries(STATUS_LABELS).map(([v, l]) => ({ value: v, label: l }))]}
+          className="w-full sm:w-44" />
+
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-          ) : error ? (
-            <div className="text-center py-12 text-destructive">{error}</div>
-          ) : complaints.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">Nema reklamacija.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">KUPAC</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">NARUDŽBINA</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">PREDMET</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">STATUS</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">DATUM</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">AKCIJE</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {complaints.map((c) => (
-                    <tr key={c.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{c.user?.firstName} {c.user?.lastName}</div>
-                        <div className="text-xs text-muted-foreground">{c.user?.email}</div>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs">{c.order?.orderNumber ?? '—'}</td>
-                      <td className="px-4 py-3 max-w-xs">
-                        <div className="truncate font-medium">{c.subject}</div>
-                        <div className="truncate text-xs text-muted-foreground">{c.description}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[c.status]}`}>
-                          {STATUS_ICONS[c.status]}{STATUS_LABELS[c.status]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(c.createdAt)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end">
-                          <button onClick={() => openDetail(c)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+
+          {/* Card view — mobile / tablet */}
+          <div className="lg:hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : error ? (
+              <div className="text-center py-12 text-destructive">{error}</div>
+            ) : complaints.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">Nema reklamacija.</div>
+            ) : (
+              complaints.map((c) => (
+                <div key={c.id} className="flex items-start gap-3 px-4 py-3.5 border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm text-foreground">
+                        {c.user?.firstName} {c.user?.lastName}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[c.status]}`}>
+                        {STATUS_ICONS[c.status]}{STATUS_LABELS[c.status]}
+                      </span>
+                    </div>
+                    {c.user?.email && (
+                      <div className="text-xs text-muted-foreground mt-0.5 truncate">{c.user.email}</div>
+                    )}
+                    <div className="text-sm font-medium mt-1.5 truncate">{c.subject}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">{c.description}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formatDate(c.createdAt)}{c.order ? ` · ${c.order.orderNumber}` : ''}
+                    </div>
+                  </div>
+                  <button onClick={() => openDetail(c)}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0 mt-0.5">
+                    <Eye className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Table view — desktop */}
+          <div className="hidden lg:block">
+            {loading ? (
+              <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : error ? (
+              <div className="text-center py-12 text-destructive">{error}</div>
+            ) : complaints.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">Nema reklamacija.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">KUPAC</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">NARUDŽBINA</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">PREDMET</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">STATUS</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">DATUM</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">AKCIJE</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {complaints.map((c) => (
+                      <tr key={c.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{c.user?.firstName} {c.user?.lastName}</div>
+                          <div className="text-xs text-muted-foreground">{c.user?.email}</div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs">{c.order?.orderNumber ?? '—'}</td>
+                        <td className="px-4 py-3 max-w-xs">
+                          <div className="truncate font-medium">{c.subject}</div>
+                          <div className="truncate text-xs text-muted-foreground">{c.description}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[c.status]}`}>
+                            {STATUS_ICONS[c.status]}{STATUS_LABELS[c.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(c.createdAt)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end">
+                            <button onClick={() => openDetail(c)}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
           {!loading && meta.totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-border">
               <span className="text-sm text-muted-foreground">Strana {meta.page} od {meta.totalPages}</span>
@@ -281,13 +327,13 @@ export default function ReklamacijePage() {
       )}
 
       {createModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setCreateModal(false)}>
-          <div className="bg-card w-full max-w-lg rounded-2xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold">Nova reklamacija</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4" onClick={() => setCreateModal(false)}>
+          <div className="bg-card w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border">
+              <h2 className="text-base sm:text-lg font-semibold">Nova reklamacija</h2>
               <button onClick={() => setCreateModal(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+            <form onSubmit={handleCreate} className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto max-h-[85vh] sm:max-h-[80vh]">
 
               {/* Tip korisnika */}
               <div className="flex rounded-xl border border-border overflow-hidden text-sm font-medium">

@@ -193,10 +193,10 @@ function CategoryModal({
   const parentOptions = flatList.filter((f) => !selfAndDescendants.has(f.id));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
+      <div className="bg-card rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border">
           <h2 className="font-semibold text-foreground">
             {mode === 'create' ? 'Dodaj kategoriju' : 'Izmeni kategoriju'}
           </h2>
@@ -206,7 +206,7 @@ function CategoryModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-4 sm:p-5 py-4 space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
               {error}
@@ -550,6 +550,124 @@ function CategoryRow({
   );
 }
 
+// ── Category Card (mobile / tablet) ─────────────────────────────────────────
+
+function CategoryCardItem({
+  node,
+  depth,
+  onAdd,
+  onEdit,
+  onToggleStatus,
+  onDelete,
+}: {
+  node: AdminCategoryNode;
+  depth: number;
+  onAdd: (parentId: string) => void;
+  onEdit: (node: AdminCategoryNode) => void;
+  onToggleStatus: (node: AdminCategoryNode) => void;
+  onDelete: (node: AdminCategoryNode) => void;
+}) {
+  const [expanded, setExpanded] = useState(depth < 1);
+
+  return (
+    <>
+      <div
+        className={`flex items-center gap-2 py-3 pr-3 border-b border-border/40 transition-colors hover:bg-muted/30 ${
+          !node.isActive ? 'opacity-60' : ''
+        }`}
+        style={{ paddingLeft: `${12 + depth * 16}px` }}
+      >
+        {/* Expand toggle */}
+        {node.children.length > 0 ? (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="p-0.5 text-muted-foreground shrink-0"
+          >
+            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+        ) : (
+          <span className="w-5 shrink-0" />
+        )}
+
+        {/* Folder icon */}
+        {expanded && node.children.length > 0 ? (
+          <FolderOpen className="h-4 w-4 text-primary/70 shrink-0" />
+        ) : (
+          <Folder className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+        )}
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm text-foreground">{node.name}</span>
+            <span
+              className={`inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full ${
+                node.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${node.isActive ? 'bg-primary' : 'bg-muted-foreground'}`} />
+              {node.isActive ? 'Aktivna' : 'Neaktivna'}
+            </span>
+          </div>
+          <div className="text-xs font-mono text-muted-foreground mt-0.5 truncate">{node.slug}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            Nivo {node.level} · {node.directListingsCount} direktno · {node.totalListingsCount} ukupno
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={() => onAdd(node.id)}
+            title="Dodaj potkategoriju"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onEdit(node)}
+            title="Izmeni"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onToggleStatus(node)}
+            title={node.isActive ? 'Deaktiviraj' : 'Aktiviraj'}
+            className={`p-1.5 rounded-lg transition-colors ${
+              node.isActive
+                ? 'text-muted-foreground hover:text-orange-600 hover:bg-orange-50'
+                : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
+          >
+            {node.isActive ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+          </button>
+          <button
+            onClick={() => onDelete(node)}
+            title="Obriši"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {expanded &&
+        node.children.map((child) => (
+          <CategoryCardItem
+            key={child.id}
+            node={child}
+            depth={depth + 1}
+            onAdd={onAdd}
+            onEdit={onEdit}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
+        ))}
+    </>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function KategorijeAdminPage() {
@@ -739,7 +857,7 @@ export default function KategorijeAdminPage() {
           </div>
           <button
             onClick={() => handleAdd()}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors sm:shrink-0"
           >
             <Plus className="h-4 w-4" />
             Dodaj kategoriju
@@ -754,7 +872,7 @@ export default function KategorijeAdminPage() {
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded-md transition-colors text-center ${
                   statusFilter === s
                     ? 'bg-primary text-white font-medium shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -806,49 +924,67 @@ export default function KategorijeAdminPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="py-3 pl-4 pr-4 w-[35%] text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Naziv
-                    </th>
-                    <th className="py-3 pr-4 w-[22%] text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Slug
-                    </th>
-                    <th className="py-3 pr-4 w-[7%] text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Nivo
-                    </th>
-                    <th className="py-3 pr-4 w-[8%] text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Direktno
-                    </th>
-                    <th className="py-3 pr-4 w-[8%] text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Ukupno
-                    </th>
-                    <th className="py-3 pr-4 w-[10%] text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Status
-                    </th>
-                    <th className="py-3 pr-4 w-[10%] text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Akcije
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="pl-4">
-                  {tree.map((node) => (
-                    <CategoryRow
-                      key={node.id}
-                      node={node}
-                      depth={0}
-                      onAdd={handleAdd}
-                      onEdit={handleEdit}
-                      onToggleStatus={handleToggleStatus}
-                      onDelete={handleDeleteClick}
-                      dragState={dragState}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* Card view — mobile / tablet */}
+              <div className="lg:hidden">
+                {tree.map((node) => (
+                  <CategoryCardItem
+                    key={node.id}
+                    node={node}
+                    depth={0}
+                    onAdd={handleAdd}
+                    onEdit={handleEdit}
+                    onToggleStatus={handleToggleStatus}
+                    onDelete={handleDeleteClick}
+                  />
+                ))}
+              </div>
+
+              {/* Table view — desktop */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="py-3 pl-4 pr-4 w-[35%] text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Naziv
+                      </th>
+                      <th className="py-3 pr-4 w-[22%] text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Slug
+                      </th>
+                      <th className="py-3 pr-4 w-[7%] text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Nivo
+                      </th>
+                      <th className="py-3 pr-4 w-[8%] text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Direktno
+                      </th>
+                      <th className="py-3 pr-4 w-[8%] text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Ukupno
+                      </th>
+                      <th className="py-3 pr-4 w-[10%] text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Status
+                      </th>
+                      <th className="py-3 pr-4 w-[10%] text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Akcije
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="pl-4">
+                    {tree.map((node) => (
+                      <CategoryRow
+                        key={node.id}
+                        node={node}
+                        depth={0}
+                        onAdd={handleAdd}
+                        onEdit={handleEdit}
+                        onToggleStatus={handleToggleStatus}
+                        onDelete={handleDeleteClick}
+                        dragState={dragState}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

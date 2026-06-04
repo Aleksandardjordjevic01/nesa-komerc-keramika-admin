@@ -116,20 +116,20 @@ function SupplierModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4" onClick={onClose}>
       <div
-        className="bg-card w-full max-w-lg rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-card w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold">{initial ? 'Izmeni dobavljača' : 'Novi dobavljač'}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+        <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-4 sm:py-5 space-y-4">
           {err && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{err}</div>}
 
           {/* Name */}
@@ -491,7 +491,7 @@ export default function UvozPage() {
     <DashboardLayout>
       <div className="p-6 lg:p-8 space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
             <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
               <Upload className="w-5 h-5 text-primary" />
@@ -503,7 +503,7 @@ export default function UvozPage() {
           </div>
           <button
             onClick={() => setModal({ open: true, editing: null })}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors sm:shrink-0"
           >
             <Plus className="w-4 h-4" />
             Novi dobavljač

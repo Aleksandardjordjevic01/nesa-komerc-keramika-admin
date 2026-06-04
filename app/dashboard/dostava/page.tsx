@@ -103,8 +103,8 @@ export default function DostavaPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
             <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
               <Truck className="w-5 h-5 text-primary" />
@@ -115,7 +115,7 @@ export default function DostavaPage() {
             </p>
           </div>
           <button onClick={openNew}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors sm:shrink-0">
             <Plus className="w-4 h-4" />Nova metoda
           </button>
         </div>
@@ -138,7 +138,7 @@ export default function DostavaPage() {
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={() => handleDrop(index)}
                 onDragEnd={handleDragEnd}
-                className={`bg-card border rounded-xl p-5 flex items-start gap-4 transition-all ${
+                className={`bg-card border rounded-xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4 transition-all ${
                   dragOverIndex === index && dragIndex !== index
                     ? 'border-primary shadow-md scale-[1.01]'
                     : dragIndex === index
@@ -149,8 +149,8 @@ export default function DostavaPage() {
                 <div className="flex items-center self-stretch cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors pt-0.5">
                   <GripVertical className="w-4 h-4" />
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center flex-wrap gap-1.5 mb-1">
                     <span className="font-semibold text-foreground">{m.name}</span>
                     <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{TYPE_LABELS[m.type]}</span>
                     {!m.isActive && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Neaktivno</span>}
@@ -173,13 +173,13 @@ export default function DostavaPage() {
 
       {/* Form modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-card w-full max-w-md rounded-2xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4" onClick={() => setShowForm(false)}>
+          <div className="bg-card w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border">
               <h2 className="text-lg font-semibold">{editing ? 'Izmeni metodu' : 'Nova metoda dostave'}</h2>
               <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4">
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Tip</p>
                 <SelectDropdown
@@ -222,7 +222,7 @@ export default function DostavaPage() {
                 </button>
               </div>
             </div>
-            <div className="flex gap-3 px-6 pb-6">
+            <div className="flex gap-3 px-4 sm:px-6 pb-4 sm:pb-6">
               <button onClick={() => setShowForm(false)} className="flex-1 py-3 text-sm border border-border rounded-xl hover:bg-muted transition-colors">Odustani</button>
               <button onClick={handleSave} disabled={saving || !form.name}
                 className="flex-1 py-3 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">

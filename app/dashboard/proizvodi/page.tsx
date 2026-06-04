@@ -101,7 +101,7 @@ export default function ProizvodiPage() {
           </div>
           <a
             href="/dashboard/proizvodi/novi"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Novi proizvod
@@ -126,18 +126,20 @@ export default function ProizvodiPage() {
               </button>
             )}
           </form>
-          <SelectDropdown
-            value={categoryId}
-            onChange={(v) => { setCategoryId(v); setPage(1); }}
-            options={categoryOptions}
-            className="w-48"
-          />
-          <SelectDropdown
-            value={isFeatured}
-            onChange={(v) => { setIsFeatured(v); setPage(1); }}
-            options={[{ value: '', label: 'Svi tipovi' }, { value: 'true', label: 'Istaknuti' }]}
-            className="w-36"
-          />
+          <div className="flex gap-3 sm:contents">
+            <SelectDropdown
+              value={categoryId}
+              onChange={(v) => { setCategoryId(v); setPage(1); }}
+              options={categoryOptions}
+              className="flex-1 sm:flex-none sm:w-44"
+            />
+            <SelectDropdown
+              value={isFeatured}
+              onChange={(v) => { setIsFeatured(v); setPage(1); }}
+              options={[{ value: '', label: 'Svi tipovi' }, { value: 'true', label: 'Istaknuti' }]}
+              className="flex-1 sm:flex-none sm:w-32"
+            />
+          </div>
         </div>
 
         <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -150,81 +152,175 @@ export default function ProizvodiPage() {
           ) : products.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">Nema proizvoda koji odgovaraju filterima.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">PROIZVOD</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">KATEGORIJA</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">CENA</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">ZALIHE</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">STATUS</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">AKCIJE</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {products.map((p) => (
-                    <tr key={p.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {p.images?.[0] ? (
-                            <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                              <Package className="w-5 h-5 text-muted-foreground" />
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-medium text-foreground flex items-center gap-1">
-                              {p.name}
-                              {p.isFeatured && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-                            </div>
-                            {p.sku && <div className="text-xs text-muted-foreground">SKU: {p.sku}</div>}
+            <>
+              {/* ── Card grid — mobile & tablet ─────────────────────────── */}
+              <div className="lg:hidden divide-y divide-border">
+                {products.map((p) => (
+                  <div key={p.id} className="p-4 hover:bg-muted/20 transition-colors">
+                    <div className="flex items-start gap-3">
+                      {/* Image */}
+                      {p.images?.[0] ? (
+                        <img src={p.images[0]} alt={p.name} className="w-14 h-14 rounded-lg object-cover border border-border flex-shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                          <Package className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        {/* Name + actions */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium text-foreground text-sm leading-tight flex items-center gap-1">
+                              <span className="truncate">{p.name}</span>
+                              {p.isFeatured && <Star className="w-3 h-3 text-amber-500 fill-amber-500 flex-shrink-0" />}
+                            </p>
+                            {p.sku && <p className="text-xs text-muted-foreground mt-0.5">SKU: {p.sku}</p>}
+                          </div>
+                          <div className="flex items-center gap-0.5 flex-shrink-0">
+                            <a
+                              href={`/dashboard/proizvodi/${p.id}`}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                              title="Izmeni"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </a>
+                            <button
+                              onClick={() => setDeleteId(p.id)}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="Obriši"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{p.category?.name ?? '—'}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{formatPrice(p.price)}</div>
-                        {p.salePrice && <div className="text-xs text-primary">{formatPrice(p.salePrice)}</div>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={p.stock === 0 ? 'text-destructive font-medium' : ''}>
-                          {p.stock}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                          p.isActive
-                            ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
-                            : 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                        }`}>
-                          {p.isActive ? 'Aktivan' : 'Neaktivan'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <a
-                            href={`/dashboard/proizvodi/${p.id}`}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            title="Izmeni"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </a>
-                          <button
-                            onClick={() => setDeleteId(p.id)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            title="Obriši"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+
+                        {/* Category + price */}
+                        <div className="flex items-center justify-between mt-1.5">
+                          <span className="text-xs text-muted-foreground truncate">{p.category?.name ?? '—'}</span>
+                          <div className="text-right flex-shrink-0 ml-2">
+                            <span className="text-sm font-semibold">{formatPrice(p.price)}</span>
+                            {p.salePrice && <span className="block text-xs text-primary">{formatPrice(p.salePrice)}</span>}
+                          </div>
                         </div>
-                      </td>
+
+                        {/* Badges */}
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            p.isActive ? 'bg-green-100 text-green-700 ring-1 ring-green-200' : 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                          }`}>
+                            {p.isActive ? 'Aktivan' : 'Neaktivan'}
+                          </span>
+                          {p.stock === 0 && p.inStock && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 ring-1 ring-blue-200">
+                              Na lageru
+                            </span>
+                          )}
+                          {p.stock === 0 && !p.inStock && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600 ring-1 ring-amber-200">
+                              Nema na lageru
+                            </span>
+                          )}
+                          {p.stock > 0 && (
+                            <span className="text-xs text-muted-foreground">Zalihe: {p.stock}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Table — desktop only ─────────────────────────────────── */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">PROIZVOD</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">KATEGORIJA</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">CENA</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">ZALIHE</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">STATUS</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">AKCIJE</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {products.map((p) => (
+                      <tr key={p.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {p.images?.[0] ? (
+                              <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                                <Package className="w-5 h-5 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-medium text-foreground flex items-center gap-1">
+                                {p.name}
+                                {p.isFeatured && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
+                              </div>
+                              {p.sku && <div className="text-xs text-muted-foreground">SKU: {p.sku}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{p.category?.name ?? '—'}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{formatPrice(p.price)}</div>
+                          {p.salePrice && <div className="text-xs text-primary">{formatPrice(p.salePrice)}</div>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {p.stock === 0 && p.inStock ? (
+                            <span className="inline-flex w-fit items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600 ring-1 ring-blue-200">
+                              Na lageru
+                            </span>
+                          ) : (
+                            <span className={p.stock === 0 ? 'text-destructive font-medium' : ''}>
+                              {p.stock}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className={`inline-flex w-fit items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                              p.isActive
+                                ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
+                                : 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                            }`}>
+                              {p.isActive ? 'Aktivan' : 'Neaktivan'}
+                            </span>
+                            {p.stock === 0 && !p.inStock && (
+                              <span className="inline-flex w-fit items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-600 ring-1 ring-amber-200">
+                                Nema na lageru
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <a
+                              href={`/dashboard/proizvodi/${p.id}`}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                              title="Izmeni"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </a>
+                            <button
+                              onClick={() => setDeleteId(p.id)}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="Obriši"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {!loading && meta.totalPages > 1 && (

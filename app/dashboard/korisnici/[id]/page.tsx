@@ -496,7 +496,7 @@ export default function KorisnikDetailPage() {
       {/* Delete confirm modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-card border border-border rounded-2xl p-12 w-full max-w-md shadow-xl text-center">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-10 w-full max-w-md shadow-xl text-center">
             <div className="flex items-center justify-center rounded-full bg-destructive/10 mx-auto mb-6" style={{ width: 72, height: 72 }}>
               <Trash2 className="w-9 h-9 text-destructive" />
             </div>
@@ -527,7 +527,7 @@ export default function KorisnikDetailPage() {
       {/* Role confirm modal */}
       {roleConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-card border border-border rounded-2xl p-12 w-full max-w-md shadow-xl text-center">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-10 w-full max-w-md shadow-xl text-center">
             {/* Icon */}
             <div className="flex items-center justify-center w-18 h-18 rounded-full bg-primary/10 mx-auto mb-6" style={{ width: 72, height: 72 }}>
               <ShieldCheck className="w-9 h-9 text-primary" />
@@ -571,7 +571,7 @@ export default function KorisnikDetailPage() {
       {/* Confirm modal */}
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-card border border-border rounded-2xl p-12 w-full max-w-md shadow-xl text-center">
+          <div className="bg-card border border-border rounded-2xl p-6 sm:p-10 w-full max-w-md shadow-xl text-center">
             <div
               className={`flex items-center justify-center rounded-full mx-auto mb-6 ${
                 confirm.destructive ? 'bg-destructive/10' : 'bg-primary/10'

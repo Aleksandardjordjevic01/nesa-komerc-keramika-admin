@@ -166,7 +166,7 @@ export default function AnalitikaPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -189,12 +189,12 @@ export default function AnalitikaPage() {
         {/* Filters bar */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Period buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="grid grid-cols-4 sm:flex sm:items-center gap-1 sm:gap-1.5">
             {PERIODS.map(({ label, value }) => (
               <button
                 key={value}
                 onClick={() => handlePeriodClick(value)}
-                className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-1.5 sm:px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${
                   !usingCustomRange && period === value
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-card text-muted-foreground hover:bg-muted border border-border'
@@ -209,25 +209,31 @@ export default function AnalitikaPage() {
           <div className="h-10 w-px bg-border hidden sm:block" />
 
           {/* Date range inputs */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <label className="text-xs text-muted-foreground whitespace-nowrap">Od:</label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="px-2.5 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+          <div className="flex items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground sm:hidden">Od:</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground hidden sm:block whitespace-nowrap">Od:</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="px-2.5 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <label className="text-xs text-muted-foreground whitespace-nowrap">Do:</label>
-              <input
-                type="date"
-                value={toDate}
-                min={fromDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="px-2.5 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground sm:hidden">Do:</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-muted-foreground hidden sm:block whitespace-nowrap">Do:</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  min={fromDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="px-2.5 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
             </div>
             {fromDate && toDate && (
               <button
@@ -341,6 +347,31 @@ export default function AnalitikaPage() {
             <div className="px-5 py-4 border-b border-border">
               <h3 className="text-sm font-semibold text-foreground">Najprodavaniji proizvodi</h3>
             </div>
+            {/* Mobile list */}
+            <div className="lg:hidden divide-y divide-border">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex-1"><div className="h-3 bg-muted rounded animate-pulse w-3/4 mb-1.5" /><div className="h-3 bg-muted rounded animate-pulse w-1/2" /></div>
+                    <div className="h-3 bg-muted rounded animate-pulse w-16 shrink-0" />
+                  </div>
+                ))
+              ) : data?.topProducts && data.topProducts.length > 0 ? (
+                data.topProducts.map((p) => (
+                  <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{p.category ?? '—'} · {p.soldCount} kom</p>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground shrink-0">{formatRSD(p.revenue)}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-8 text-center text-xs text-muted-foreground">Nema podataka</div>
+              )}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
@@ -372,6 +403,7 @@ export default function AnalitikaPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Recent orders */}
@@ -379,6 +411,34 @@ export default function AnalitikaPage() {
             <div className="px-5 py-4 border-b border-border">
               <h3 className="text-sm font-semibold text-foreground">Poslednje narudžbine</h3>
             </div>
+            {/* Mobile list */}
+            <div className="lg:hidden divide-y divide-border">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div><div className="h-3 bg-muted rounded animate-pulse w-20 mb-1.5" /><div className="h-3 bg-muted rounded animate-pulse w-28" /></div>
+                    <div className="text-right"><div className="h-3 bg-muted rounded animate-pulse w-16 mb-1.5" /><div className="h-4 bg-muted rounded-full animate-pulse w-16" /></div>
+                  </div>
+                ))
+              ) : data?.recentOrders && data.recentOrders.length > 0 ? (
+                data.recentOrders.map((o) => (
+                  <div key={o.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">{o.orderNumber}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{o.customer}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-foreground">{formatRSD(o.totalAmount)}</p>
+                      <span className={`inline-flex mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${ORDER_STATUS_COLORS[o.status] ?? 'bg-muted text-muted-foreground'}`}>{ORDER_STATUS_LABELS[o.status] ?? o.status}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-8 text-center text-xs text-muted-foreground">Nema podataka</div>
+              )}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
@@ -414,6 +474,7 @@ export default function AnalitikaPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
@@ -423,6 +484,40 @@ export default function AnalitikaPage() {
             <div className="px-5 py-4 border-b border-border">
               <h3 className="text-sm font-semibold text-foreground">Prihod po kategorijama</h3>
             </div>
+            {/* Mobile cards */}
+            <div className="lg:hidden divide-y divide-border">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="px-4 py-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="h-3 bg-muted rounded animate-pulse w-1/3" />
+                      <div className="h-3 bg-muted rounded animate-pulse w-16" />
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full animate-pulse" />
+                  </div>
+                ))
+              ) : (
+                data!.revenueByCategory!.map((cat) => (
+                  <div key={cat.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-3 mb-1.5">
+                      <p className="text-sm font-medium text-foreground truncate">{cat.name}</p>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold text-foreground">{formatRSD(cat.revenue)}</p>
+                        <p className="text-xs text-muted-foreground">{cat.ordersCount} narudžbina</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${cat.percentage ?? 0}%` }} />
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">{(cat.percentage ?? 0).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
@@ -459,6 +554,7 @@ export default function AnalitikaPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 

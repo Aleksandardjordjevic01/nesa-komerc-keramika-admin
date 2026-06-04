@@ -403,6 +403,7 @@ export interface Product {
   finish: string | null;
   usage: string | null;
   images: string[] | null;
+  inStock: boolean;
   isActive: boolean;
   isFeatured: boolean;
   categoryId: string;
@@ -462,6 +463,10 @@ export async function updateProduct(id: string, payload: Partial<Product>): Prom
 
 export async function deleteProduct(id: string): Promise<void> {
   return request(`/products/${id}`, { method: 'DELETE' });
+}
+
+export async function patchProductInStock(id: string, inStock: boolean): Promise<void> {
+  return request(`/products/${id}/in-stock`, { method: 'PATCH', body: safeJsonStringify({ inStock }) });
 }
 
 // ── Narudžbine ─────────────────────────────────────────────────────────────────

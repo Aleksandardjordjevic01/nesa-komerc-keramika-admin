@@ -126,11 +126,11 @@ function BrandModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-card border border-border rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+      <div className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">
             {isEdit ? 'Izmeni brend' : 'Dodaj brend'}
           </h2>
@@ -140,7 +140,7 @@ function BrandModal({
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-4 sm:p-5 py-4 space-y-4 overflow-y-auto flex-1">
           {/* Logo */}
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-xl border border-border bg-muted flex items-center justify-center shrink-0 overflow-hidden">
@@ -414,7 +414,7 @@ export default function BrandPage() {
     <DashboardLayout>
       <div className="p-6 lg:p-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
             <h1 className="text-lg font-semibold text-foreground">Brendovi</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -423,7 +423,7 @@ export default function BrandPage() {
           </div>
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium sm:shrink-0"
           >
             <Plus className="w-4 h-4" />
             Dodaj brend
@@ -431,7 +431,7 @@ export default function BrandPage() {
         </div>
 
         {/* Search */}
-        <div className="relative max-w-sm">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={search}

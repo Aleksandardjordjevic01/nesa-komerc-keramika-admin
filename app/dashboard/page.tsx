@@ -52,7 +52,7 @@ export default function DashboardPage() {
         </div>
 
         {/* CTA Banner — brand-dark like web app */}
-        <div className="relative overflow-hidden rounded-xl bg-brand-dark px-6 py-5 flex items-center justify-between gap-4">
+        <div className="relative overflow-hidden rounded-xl bg-brand-dark px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-white">Pregled platforme</p>
             <p className="text-xs text-white/60 mt-0.5">
@@ -61,7 +61,7 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/dashboard/narudzbine"
-            className="flex-shrink-0 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold transition-colors"
+            className="w-full sm:w-auto flex-shrink-0 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold transition-colors text-center"
           >
             Narudžbine →
           </Link>

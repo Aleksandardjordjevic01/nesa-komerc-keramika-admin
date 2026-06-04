@@ -110,9 +110,9 @@ function CreateUserModal({
   const inputCls = 'w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border">
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
             <UserPlus className="w-4 h-4 text-primary" />
             Novi korisnik
@@ -122,7 +122,7 @@ function CreateUserModal({
           </button>
         </div>
 
-        <form onSubmit={(e) => void handleSubmit(e)} className="px-6 py-5 space-y-4">
+        <form onSubmit={(e) => void handleSubmit(e)} className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto flex-1">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">Ime *</label>
@@ -382,7 +382,7 @@ export default function KorisniciPage() {
     <DashboardLayout>
       <div className="p-6 lg:p-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
             <h1 className="text-xl font-semibold text-foreground flex items-center gap-2"><Users className="w-5 h-5 text-primary" />Korisnici</h1>
             {!loading && (
@@ -391,7 +391,7 @@ export default function KorisniciPage() {
           </div>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors sm:shrink-0"
           >
             <UserPlus className="w-4 h-4" />
             Novi korisnik
@@ -399,9 +399,9 @@ export default function KorisniciPage() {
         </div>
 
         {/* Search + Filters */}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-3">
           {/* Search */}
-          <div className="relative flex-1 min-w-64">
+          <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
@@ -412,39 +412,38 @@ export default function KorisniciPage() {
             />
           </div>
 
-          {/* Status dropdown */}
-          <SelectDropdown
-            className="w-44"
-            value={statusFilter}
-            onChange={(v) => { setStatusFilter(v); setPage(1); }}
-            options={[
-              { value: '', label: 'Svi statusi' },
-              { value: 'ACTIVE', label: 'Aktivni' },
-              { value: 'INACTIVE', label: 'Neaktivni' },
-            ]}
-          />
-
-          {/* Role dropdown */}
-          <SelectDropdown
-            className="w-40"
-            value={roleFilter}
-            onChange={(v) => { setRoleFilter(v); setPage(1); }}
-            options={[
-              { value: '', label: 'Sve uloge' },
-              { value: 'USER', label: 'Korisnik' },
-              { value: 'ADMIN', label: 'Admin' },
-              { value: 'SUPER_ADMIN', label: 'Super Admin' },
-            ]}
-          />
-
-          {(searchInput || statusFilter || roleFilter) && (
-            <button
-              onClick={() => { setSearchInput(''); setStatusFilter(''); setRoleFilter(''); setPage(1); }}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-muted-foreground hover:bg-muted transition-colors"
-            >
-              <X className="w-3.5 h-3.5" /> Resetuj
-            </button>
-          )}
+          {/* Dropdowns row */}
+          <div className="flex gap-3">
+            <SelectDropdown
+              className="flex-1 sm:w-44 sm:flex-none"
+              value={statusFilter}
+              onChange={(v) => { setStatusFilter(v); setPage(1); }}
+              options={[
+                { value: '', label: 'Svi statusi' },
+                { value: 'ACTIVE', label: 'Aktivni' },
+                { value: 'INACTIVE', label: 'Neaktivni' },
+              ]}
+            />
+            <SelectDropdown
+              className="flex-1 sm:w-40 sm:flex-none"
+              value={roleFilter}
+              onChange={(v) => { setRoleFilter(v); setPage(1); }}
+              options={[
+                { value: '', label: 'Sve uloge' },
+                { value: 'USER', label: 'Korisnik' },
+                { value: 'ADMIN', label: 'Admin' },
+                { value: 'SUPER_ADMIN', label: 'Super Admin' },
+              ]}
+            />
+            {(searchInput || statusFilter || roleFilter) && (
+              <button
+                onClick={() => { setSearchInput(''); setStatusFilter(''); setRoleFilter(''); setPage(1); }}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-muted-foreground hover:bg-muted transition-colors shrink-0"
+              >
+                <X className="w-3.5 h-3.5" /> Resetuj
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Error */}
@@ -452,19 +451,69 @@ export default function KorisniciPage() {
           <div className="px-4 py-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">{error}</div>
         )}
 
-        {/* Table */}
+        {/* Table / Cards */}
         <div className="bg-card border border-border rounded-xl overflow-hidden card-shadow">
-          <div className="overflow-x-auto">
+
+          {/* Card view — mobile / tablet */}
+          <div className="lg:hidden">
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3.5 border-b border-border/40">
+                  <div className="w-10 h-10 rounded-full bg-muted animate-pulse shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 bg-muted rounded animate-pulse w-1/2" />
+                    <div className="h-3 bg-muted rounded animate-pulse w-3/4" />
+                  </div>
+                </div>
+              ))
+            ) : users.length === 0 ? (
+              <div className="px-4 py-12 text-center text-sm text-muted-foreground">Nema korisnika.</div>
+            ) : (
+              users.map((user) => (
+                <div key={user.id} className="flex items-center gap-3 px-4 py-3.5 border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
+                  <Link href={`/dashboard/korisnici/${user.id}`} className="shrink-0">
+                    {user.avatarUrl ? (
+                      <img
+                        src={`${(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1').replace('/api/v1', '')}${user.avatarUrl}`}
+                        alt={user.displayName}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                        {user.displayName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link href={`/dashboard/korisnici/${user.id}`} className="font-medium text-sm text-foreground hover:underline truncate">
+                        {user.displayName}
+                      </Link>
+                      <span className={`inline-flex px-1.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[user.status] ?? 'bg-muted text-muted-foreground'}`}>
+                        {STATUS_LABELS[user.status] ?? user.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">{user.email}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{ROLE_LABELS[user.role] ?? user.role}</div>
+                  </div>
+                  <ActionsMenu user={user} onToggle={handleToggleRequest} onDelete={handleDeleteRequest} />
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Table view — desktop */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Korisnik</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">E-mail</th>
-                  <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Telefon</th>
-                  <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Grad</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Telefon</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Grad</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Uloga</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Porudžbine</th>
+                  <th className="px-4 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Porudžbine</th>
                   <th className="px-4 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Akcije</th>
                 </tr>
               </thead>
@@ -505,8 +554,8 @@ export default function KorisniciPage() {
                         </Link>
                       </td>
                       <td className="px-4 py-4 text-muted-foreground truncate max-w-[160px]">{user.email}</td>
-                      <td className="px-4 py-4 text-muted-foreground hidden md:table-cell">{user.phone ?? '—'}</td>
-                      <td className="px-4 py-4 text-muted-foreground hidden lg:table-cell">{user.city ?? '—'}</td>
+                      <td className="px-4 py-4 text-muted-foreground">{user.phone ?? '—'}</td>
+                      <td className="px-4 py-4 text-muted-foreground">{user.city ?? '—'}</td>
                       <td className="px-4 py-4">
                         <span className="text-xs font-medium text-muted-foreground">{ROLE_LABELS[user.role] ?? user.role}</span>
                       </td>
@@ -515,7 +564,7 @@ export default function KorisniciPage() {
                           {STATUS_LABELS[user.status] ?? user.status}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-center text-muted-foreground hidden lg:table-cell">{user.ordersCount}</td>
+                      <td className="px-4 py-4 text-center text-muted-foreground">{user.ordersCount}</td>
                       <td className="px-4 py-4 text-center">
                         <ActionsMenu user={user} onToggle={handleToggleRequest} onDelete={handleDeleteRequest} />
                       </td>

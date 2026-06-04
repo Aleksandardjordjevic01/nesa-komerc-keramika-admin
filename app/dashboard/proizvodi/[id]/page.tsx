@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '../../../../components/layout/dashboard-layout';
 import {
-  getProduct, updateProduct, deleteProduct, getBrands,
+  getProduct, updateProduct, deleteProduct, getBrands, patchProductInStock,
   type Product, type Brand, type VariantItem,
 } from '../../../../lib/api/client';
 import { getAdminCategoryFlat, type AdminFlatCategory } from '../../../../lib/api/categories';
@@ -434,6 +434,8 @@ export default function ProductEditPage() {
   const [images, setImages] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantItem[]>([]);
   const [specs, setSpecs] = useState<{ key: string; value: string }[]>([]);
+  const [inStock, setInStock] = useState(true);
+  const [inStockSaving, setInStockSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -469,6 +471,7 @@ export default function ProductEditPage() {
       setImages(p.images ?? []);
       setVariants(p.variants ?? []);
       setSpecs(p.specifications ?? []);
+      setInStock(p.inStock ?? true);
     } catch {
       setError('Nije moguće učitati proizvod.');
     } finally {
@@ -525,6 +528,7 @@ export default function ProductEditPage() {
         usage: form.usage || null,
         isActive: form.isActive,
         isFeatured: form.isFeatured,
+        inStock: parseInt(form.stock, 10) > 0 ? true : inStock,
         images: images,
         variants: variants.length ? variants : null,
         specifications: specs.filter((s) => s.key && s.value).length
@@ -538,6 +542,19 @@ export default function ProductEditPage() {
       alert(e instanceof Error ? e.message : 'Greška pri čuvanju');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleToggleInStock(v: boolean) {
+    setInStock(v);
+    setInStockSaving(true);
+    try {
+      await patchProductInStock(id, v);
+    } catch {
+      setInStock(!v);
+      alert('Greška pri promeni statusa lagera');
+    } finally {
+      setInStockSaving(false);
     }
   }
 
@@ -779,6 +796,24 @@ export default function ProductEditPage() {
                   <p className="text-xs text-muted-foreground">Prikazuje se na početnoj</p>
                 </div>
                 <Toggle value={form.isFeatured} onChange={(v) => setField('isFeatured', v)} />
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                <div>
+                  <p className="text-sm text-foreground font-medium">Na lageru</p>
+                  <p className="text-xs text-muted-foreground">
+                    {parseInt(form.stock, 10) > 0 ? 'Automatski — ima zalihe' : 'Dostupnost proizvoda'}
+                  </p>
+                </div>
+                {parseInt(form.stock, 10) > 0 ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600 ring-1 ring-blue-200">
+                    Na lageru
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {inStockSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                    <Toggle value={inStock} onChange={handleToggleInStock} />
+                  </div>
+                )}
               </div>
             </Section>
 
