@@ -9,6 +9,15 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Admin — Moje Stvari',
+  icons: {
+    icon: [
+      { url: '/images/favicon.png', type: 'image/png', sizes: '512x512' },
+    ],
+    apple: [
+      { url: '/images/favicon.png', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: '/images/favicon.png',
+  },
 };
 
 export default function AdminRootLayout({
