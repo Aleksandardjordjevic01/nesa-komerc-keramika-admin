@@ -65,6 +65,17 @@ function flattenTree(nodes: AdminCategoryNode[], result: AdminCategoryNode[] = [
   return result;
 }
 
+function filterTreeByStatus(nodes: AdminCategoryNode[], isActive: boolean): AdminCategoryNode[] {
+  const result: AdminCategoryNode[] = [];
+  for (const node of nodes) {
+    const filteredChildren = filterTreeByStatus(node.children, isActive);
+    if (node.isActive === isActive || filteredChildren.length > 0) {
+      result.push({ ...node, children: filteredChildren });
+    }
+  }
+  return result;
+}
+
 // ── Confirm Modal ─────────────────────────────────────────────────────────────
 
 function ConfirmModal({
@@ -841,6 +852,10 @@ export default function KategorijeAdminPage() {
     onDragEnd: handleDragEnd,
   };
 
+  const displayTree = statusFilter === 'all'
+    ? tree
+    : filterTreeByStatus(tree, statusFilter === 'active');
+
   const totalCount = flattenTree(tree).length;
   const activeCount = flattenTree(tree).filter((n) => n.isActive).length;
 
@@ -914,7 +929,7 @@ export default function KategorijeAdminPage() {
             <div className="flex items-center justify-center py-20 text-red-600 text-sm">
               {error}
             </div>
-          ) : tree.length === 0 ? (
+          ) : displayTree.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
               <Folder className="h-10 w-10 text-muted-foreground/40" />
               <p className="text-sm">
@@ -927,7 +942,7 @@ export default function KategorijeAdminPage() {
             <>
               {/* Card view — mobile / tablet */}
               <div className="lg:hidden">
-                {tree.map((node) => (
+                {displayTree.map((node) => (
                   <CategoryCardItem
                     key={node.id}
                     node={node}
@@ -969,7 +984,7 @@ export default function KategorijeAdminPage() {
                     </tr>
                   </thead>
                   <tbody className="pl-4">
-                    {tree.map((node) => (
+                    {displayTree.map((node) => (
                       <CategoryRow
                         key={node.id}
                         node={node}

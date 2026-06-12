@@ -399,9 +399,9 @@ export default function KorisniciPage() {
         </div>
 
         {/* Search + Filters */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           {/* Search */}
-          <div className="relative w-full">
+          <div className="relative w-full lg:flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
@@ -413,9 +413,9 @@ export default function KorisniciPage() {
           </div>
 
           {/* Dropdowns row */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 lg:flex-nowrap lg:shrink-0">
             <SelectDropdown
-              className="flex-1 sm:w-44 sm:flex-none"
+              className="min-w-[140px] flex-1 sm:w-44 sm:flex-none"
               value={statusFilter}
               onChange={(v) => { setStatusFilter(v); setPage(1); }}
               options={[
@@ -425,7 +425,7 @@ export default function KorisniciPage() {
               ]}
             />
             <SelectDropdown
-              className="flex-1 sm:w-40 sm:flex-none"
+              className="min-w-[140px] flex-1 sm:w-40 sm:flex-none"
               value={roleFilter}
               onChange={(v) => { setRoleFilter(v); setPage(1); }}
               options={[

@@ -277,7 +277,7 @@ export async function createAdminUser(payload: CreateAdminUserPayload): Promise<
   return mapBackendUserToListItem(u);
 }
 
-export async function updateAdminUserStatus(id: string, status: UserStatus): Promise<AdminUserListItem> {
+export async function updateAdminUserStatus(id: string, _status: UserStatus): Promise<AdminUserListItem> {
   const u = await request<BackendUser>(`/users/${id}/toggle-active`, { method: 'PATCH' });
   return mapBackendUserToListItem(u);
 }
@@ -337,7 +337,7 @@ export async function resetAdminUserPassword(id: string, password: string): Prom
   return request(`/users/${id}`, { method: 'PUT', body: safeJsonStringify({ password }) });
 }
 
-export async function sendAdminUserResetEmail(id: string): Promise<{ message: string; resetLink?: string }> {
+export async function sendAdminUserResetEmail(_id: string): Promise<{ message: string; resetLink?: string }> {
   return { message: 'Nije podržano od strane ovog backenda.' };
 }
 
@@ -351,6 +351,8 @@ export interface Brand {
   logoUrl: string | null;
   website: string | null;
   isActive: boolean;
+  priceAdjustmentPercent: number | null;
+  previousPriceAdjustmentPercent: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -370,6 +372,22 @@ export async function updateBrand(id: string, payload: Partial<Brand>): Promise<
 
 export async function deleteBrand(id: string): Promise<void> {
   return request(`/brands/${id}`, { method: 'DELETE' });
+}
+
+export async function applyBrandPriceAdjustment(
+  id: string,
+  percent: number,
+): Promise<{ updatedCount: number; appliedPercent: number; previousPercent: number | null }> {
+  return request(`/brands/${id}/price-adjustment`, {
+    method: 'PATCH',
+    body: safeJsonStringify({ percent }),
+  });
+}
+
+export async function undoBrandPriceAdjustment(
+  id: string,
+): Promise<{ updatedCount: number; restoredPercent: number | null }> {
+  return request(`/brands/${id}/price-adjustment/undo`, { method: 'POST' });
 }
 
 export type VariantItem = {
@@ -482,7 +500,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  product?: { id: string; name: string; images: string[] };
+  product?: { id: string; name: string; sku: string | null; images: string[] };
 }
 
 export interface Order {
@@ -540,12 +558,302 @@ export async function getOrder(id: string): Promise<Order> {
   return request<Order>(`/orders/${id}`);
 }
 
-export async function updateOrderStatus(id: string, status: OrderStatus): Promise<Order> {
-  return request<Order>(`/orders/${id}/status`, { method: 'PATCH', body: safeJsonStringify({ status }) });
+export interface OrderStatusEmailResult {
+  data: Order;
+  email?: { sent: boolean; message?: string };
 }
 
-export async function updateOrderPaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<Order> {
-  return request<Order>(`/orders/${id}/payment-status`, { method: 'PATCH', body: safeJsonStringify({ paymentStatus }) });
+async function patchOrderStatusWithEmail(
+  path: string,
+  body: Record<string, string>,
+): Promise<OrderStatusEmailResult> {
+  const token = getToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'PATCH',
+    headers,
+    body: safeJsonStringify(body),
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+
+  const responseBody = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = responseBody?.message ?? `HTTP ${res.status}`;
+    throw new Error(Array.isArray(message) ? message.join(', ') : String(message));
+  }
+
+  return {
+    data: (responseBody?.data ?? responseBody) as Order,
+    email: responseBody?.email,
+  };
+}
+
+export async function updateOrderStatus(id: string, status: OrderStatus): Promise<OrderStatusEmailResult> {
+  return patchOrderStatusWithEmail(`/orders/${id}/status`, { status });
+}
+
+export async function updateOrderPaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<OrderStatusEmailResult> {
+  return patchOrderStatusWithEmail(`/orders/${id}/payment-status`, { paymentStatus });
+}
+
+export interface UpdateOrderItemPayload {
+  productId: string;
+  quantity: number;
+  unitPrice?: number;
+}
+
+export interface UpdateOrderPayload {
+  status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingZipCode?: string;
+  shippingCountry?: string;
+  shippingCost?: number;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  companyName?: string;
+  pib?: string;
+  mb?: string;
+  notes?: string;
+  couponCode?: string;
+  discountAmount?: number;
+  items?: UpdateOrderItemPayload[];
+}
+
+export async function updateOrder(id: string, payload: UpdateOrderPayload): Promise<Order> {
+  return request<Order>(`/orders/${id}`, { method: 'PUT', body: safeJsonStringify(payload) });
+}
+
+export async function deleteOrder(id: string): Promise<void> {
+  await request<void>(`/orders/${id}`, { method: 'DELETE' });
+}
+
+export async function downloadOrderPdf(id: string, orderNumber: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/orders/${id}/pdf`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `narudzbina-${orderNumber}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Geo autocomplete ─────────────────────────────────────────────────────────
+
+export interface GeoCity {
+  name: string;
+  postcode: string;
+}
+
+export interface GeoAddress {
+  address: string;
+  postcode: string;
+}
+
+type GeoApiBody = unknown[] | { success?: boolean; data?: unknown; message?: unknown };
+
+const SERBIAN_CITY_POSTCODES: Record<string, string> = {
+  Beograd: '11000',
+  'Novi Sad': '21000',
+  Nis: '18000',
+  Kragujevac: '34000',
+  Subotica: '24000',
+  Leskovac: '16000',
+  Pancevo: '26000',
+  Krusevac: '37000',
+  Kraljevo: '36000',
+  'Novi Pazar': '36300',
+  Zrenjanin: '23000',
+  Cacak: '32000',
+  Sabac: '15000',
+  Smederevo: '11300',
+  Valjevo: '14000',
+  Vranje: '17500',
+  'Sremska Mitrovica': '22000',
+  Loznica: '15300',
+  Sombor: '25000',
+  Uzice: '31000',
+  Pozarevac: '12000',
+  Jagodina: '35000',
+  Pirot: '18300',
+  Kikinda: '23300',
+  Ruma: '22400',
+  'Backa Palanka': '21400',
+  Zajecar: '19000',
+  Paracin: '35250',
+  Vrsac: '26300',
+  Indjija: '22320',
+  Aleksinac: '18220',
+  'Smederevska Palanka': '11420',
+  Arandjelovac: '34300',
+  Bor: '19210',
+  Prokuplje: '18400',
+  Vrbas: '21460',
+  Trstenik: '37240',
+  Kula: '25230',
+  'Velika Plana': '11320',
+  Presevo: '17523',
+  Prijepolje: '31300',
+  Becej: '21220',
+  Negotin: '19300',
+  Kovin: '26220',
+  Sid: '22240',
+  Ivanjica: '32250',
+  'Backa Topola': '24300',
+  Pozega: '31210',
+  Temerin: '21235',
+  Cuprija: '35230',
+  Apatin: '25260',
+  Raska: '36350',
+  Svilajnac: '35210',
+  Zemun: '11080',
+  Lazarevac: '11550',
+  Obrenovac: '11500',
+  Mladenovac: '11400',
+};
+
+const SERBIAN_CITY_NAMES = [
+  'Beograd', 'Novi Sad', 'Nis', 'Kragujevac', 'Subotica', 'Leskovac', 'Pancevo',
+  'Krusevac', 'Kraljevo', 'Novi Pazar', 'Zrenjanin', 'Cacak', 'Sabac',
+  'Smederevo', 'Valjevo', 'Vranje', 'Sremska Mitrovica', 'Loznica', 'Sombor',
+  'Uzice', 'Pozarevac', 'Jagodina', 'Stara Pazova', 'Pirot', 'Kikinda', 'Ruma',
+  'Backa Palanka', 'Zajecar', 'Paracin', 'Vrsac', 'Indjija', 'Aleksinac',
+  'Smederevska Palanka', 'Arandjelovac', 'Bujanovac', 'Bor', 'Gornji Milanovac',
+  'Prokuplje', 'Vrbas', 'Trstenik', 'Kula', 'Velika Plana', 'Presevo', 'Tutin',
+  'Prijepolje', 'Becej', 'Negotin', 'Kovin', 'Sid', 'Ivanjica', 'Backa Topola',
+  'Pozega', 'Petrovac na Mlavi', 'Temerin', 'Ub', 'Vlasotince', 'Knjazevac',
+  'Cuprija', 'Vrnjacka Banja', 'Odzaci', 'Bogatic', 'Sjenica', 'Zabalj',
+  'Bajina Basta', 'Priboj', 'Apatin', 'Aleksandrovac', 'Raska', 'Kovacica',
+  'Kanjiza', 'Svilajnac', 'Novi Becej', 'Topola', 'Pecinci', 'Despotovac',
+  'Lebane', 'Senta', 'Vladicin Han', 'Kladovo', 'Alibunar', 'Arilje',
+  'Surdulica', 'Lucani', 'Doljevac', 'Kursumlija', 'Veliko Gradiste',
+  'Cajetina', 'Majdanpek', 'Bela Crkva', 'Vladimirci', 'Krupanj', 'Srbobran',
+  'Varvarin', 'Titel', 'Beocin', 'Lajkovac', 'Zitoradja', 'Brus', 'Nova Varos',
+  'Zitiste', 'Ada', 'Sokobanja', 'Ljubovija', 'Mionica', 'Merosina', 'Kucevo',
+  'Knic', 'Backi Petrovac', 'Bac', 'Mali Zvornik', 'Koceljeva', 'Svrljig',
+  'Ljig', 'Secanj', 'Boljevac', 'Kosjeric', 'Batocina', 'Mali Idjos',
+  'Osecina', 'Bela Palanka', 'Zagubica', 'Blace', 'Raca', 'Opovo', 'Bojnik',
+  'Irig', 'Zabari', 'Babusnica', 'Malo Crnice', 'Plandiste', 'Novi Knezevac',
+  'Coka', 'Nova Crnja', 'Rekovac', 'Dimitrovgrad', 'Sremski Karlovci',
+  'Cicevac', 'Razanj', 'Golubac', 'Lapovo', 'Medvedja', 'Bosilegrad',
+  'Gadzin Han', 'Trgoviste', 'Crna Trava',
+  'Zemun', 'Novi Beograd', 'Surcin', 'Palilula', 'Vozdovac', 'Zvezdara',
+  'Vracar', 'Stari Grad', 'Savski Venac', 'Cukarica', 'Rakovica', 'Grocka',
+  'Barajevo', 'Sopot', 'Lazarevac', 'Obrenovac', 'Mladenovac',
+  'Petrovaradin', 'Sremska Kamenica', 'Veternik', 'Futog',
+];
+
+const SERBIAN_CITY_FALLBACK: GeoCity[] = Array.from(new Set(SERBIAN_CITY_NAMES)).map((name) => ({
+  name,
+  postcode: SERBIAN_CITY_POSTCODES[name] ?? '',
+}));
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function geoDataArray(body: GeoApiBody): unknown[] {
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === 'object' && Array.isArray((body as { data?: unknown }).data)) {
+    return (body as { data: unknown[] }).data;
+  }
+  return [];
+}
+
+function geoErrorMessage(body: GeoApiBody): string | null {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  const message = (body as { message?: unknown }).message;
+  if (Array.isArray(message)) return message.join(', ');
+  return typeof message === 'string' ? message : null;
+}
+
+function fallbackCities(q: string): GeoCity[] {
+  const normalized = normalizeSearchText(q.trim());
+  const matches = normalized
+    ? SERBIAN_CITY_FALLBACK.filter((city) => normalizeSearchText(city.name).includes(normalized))
+    : SERBIAN_CITY_FALLBACK;
+
+  return matches.sort((a, b) => {
+    const aName = normalizeSearchText(a.name);
+    const bName = normalizeSearchText(b.name);
+    const aStarts = normalized && aName.startsWith(normalized) ? 0 : 1;
+    const bStarts = normalized && bName.startsWith(normalized) ? 0 : 1;
+    return aStarts - bStarts || a.name.localeCompare(b.name, 'sr-Latn-RS');
+  });
+}
+
+function normalizeGeoCity(item: unknown): GeoCity | null {
+  if (!item || typeof item !== 'object') return null;
+  const record = item as Record<string, unknown>;
+  const name = record.name ?? record.city ?? record.displayName;
+  const postcode = record.postcode ?? record.postalCode ?? record.zipCode ?? '';
+  if (typeof name !== 'string' || !name.trim()) return null;
+  return {
+    name: name.trim(),
+    postcode: typeof postcode === 'string' || typeof postcode === 'number' ? String(postcode) : '',
+  };
+}
+
+function mergeCities(primary: GeoCity[], fallback: GeoCity[]): GeoCity[] {
+  const seen = new Set<string>();
+  return [...primary, ...fallback].filter((city) => {
+    const key = normalizeSearchText(city.name);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeGeoAddress(item: unknown): GeoAddress | null {
+  if (!item || typeof item !== 'object') return null;
+  const record = item as Record<string, unknown>;
+  const roadAddress = [record.road, record.houseNumber].filter(Boolean).join(' ');
+  const address = record.address || roadAddress || record.displayName;
+  const postcode = record.postcode ?? record.postalCode ?? record.zipCode ?? '';
+  if (typeof address !== 'string' || !address.trim()) return null;
+  return {
+    address: address.trim(),
+    postcode: typeof postcode === 'string' || typeof postcode === 'number' ? String(postcode) : '',
+  };
+}
+
+export async function searchCities(q: string): Promise<GeoCity[]> {
+  try {
+    const res = await fetch(`${API_URL}/geo/cities?q=${encodeURIComponent(q)}`);
+    const body = await res.json().catch(() => null) as GeoApiBody | null;
+    if (!res.ok) throw new Error(body ? geoErrorMessage(body) ?? `HTTP ${res.status}` : `HTTP ${res.status}`);
+    const normalized = geoDataArray(body ?? []).map(normalizeGeoCity).filter((city): city is GeoCity => Boolean(city));
+    return mergeCities(normalized, fallbackCities(q));
+  } catch {
+    return fallbackCities(q);
+  }
+}
+
+export async function searchAddresses(q: string, city: string): Promise<GeoAddress[]> {
+  const params = new URLSearchParams({ q, city });
+  const res = await fetch(`${API_URL}/geo/addresses?${params}`);
+  const body = await res.json().catch(() => null) as GeoApiBody | null;
+  if (!res.ok) throw new Error(body ? geoErrorMessage(body) ?? `HTTP ${res.status}` : `HTTP ${res.status}`);
+  return geoDataArray(body ?? []).map(normalizeGeoAddress).filter((address): address is GeoAddress => Boolean(address));
 }
 
 // ── Reklamacije ───────────────────────────────────────────────────────────────
@@ -1449,8 +1757,123 @@ export interface FooterSettings {
   mb: string;
 }
 
+type RawFooterSettings = Partial<FooterSettings> &
+  Record<string, unknown> |
+  PlatformSettingItem[] |
+  { settings?: unknown; footer?: unknown; data?: unknown };
+
+const FOOTER_DEFAULTS: FooterSettings = {
+  description: '',
+  facebookUrl: '',
+  instagramUrl: '',
+  twitterUrl: '',
+  tiktokUrl: '',
+  street: '',
+  city: '',
+  phone: '',
+  email: '',
+  pib: '',
+  mb: '',
+};
+
+const FOOTER_KEY_MAP: Record<string, keyof FooterSettings> = {
+  description: 'description',
+  footerdescription: 'description',
+  footertext: 'description',
+  footerdesc: 'description',
+  opis: 'description',
+  facebookurl: 'facebookUrl',
+  facebook: 'facebookUrl',
+  facebooklink: 'facebookUrl',
+  instagramurl: 'instagramUrl',
+  instagram: 'instagramUrl',
+  instagramlink: 'instagramUrl',
+  twitterurl: 'twitterUrl',
+  twitter: 'twitterUrl',
+  twitterlink: 'twitterUrl',
+  xurl: 'twitterUrl',
+  xlink: 'twitterUrl',
+  tiktokurl: 'tiktokUrl',
+  tiktok: 'tiktokUrl',
+  tiktoklink: 'tiktokUrl',
+  street: 'street',
+  address: 'street',
+  companyaddress: 'street',
+  companystreet: 'street',
+  contactaddress: 'street',
+  adresa: 'street',
+  ulica: 'street',
+  city: 'city',
+  companycity: 'city',
+  contactcity: 'city',
+  grad: 'city',
+  phone: 'phone',
+  telephone: 'phone',
+  phonenumber: 'phone',
+  contactphone: 'phone',
+  companyphone: 'phone',
+  brojtelefona: 'phone',
+  email: 'email',
+  emailaddress: 'email',
+  contactemail: 'email',
+  companyemail: 'email',
+  pib: 'pib',
+  companypib: 'pib',
+  mb: 'mb',
+  companymb: 'mb',
+  maticnibroj: 'mb',
+};
+
+function footerKey(key: string): keyof FooterSettings | null {
+  const bare = key.split('.').pop() ?? key;
+  const normalized = bare.replace(/[_\-\s]/g, '').toLowerCase();
+  return FOOTER_KEY_MAP[normalized] ?? null;
+}
+
+function readFooterSource(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  const record = raw as { data?: unknown; footer?: unknown; settings?: unknown };
+  return record.data ?? record.footer ?? record.settings ?? raw;
+}
+
+function normalizeFooterSettings(raw: unknown): FooterSettings {
+  const source = readFooterSource(raw);
+  const normalized: FooterSettings = { ...FOOTER_DEFAULTS };
+
+  if (Array.isArray(source)) {
+    for (const item of source) {
+      if (!item || typeof item !== 'object') continue;
+      const record = item as { key?: unknown; value?: unknown };
+      if (typeof record.key !== 'string') continue;
+      const key = footerKey(record.key);
+      if (!key) continue;
+      normalized[key] = record.value == null ? '' : String(record.value);
+    }
+    return normalized;
+  }
+
+  if (source && typeof source === 'object') {
+    for (const [rawKey, rawValue] of Object.entries(source as Record<string, unknown>)) {
+      const key = footerKey(rawKey);
+      if (!key) continue;
+      normalized[key] = rawValue == null ? '' : String(rawValue);
+    }
+  }
+
+  return normalized;
+}
+
+function hasFooterValues(settings: FooterSettings): boolean {
+  return Object.values(settings).some((value) => value.trim() !== '');
+}
+
 export async function getFooterSettings(): Promise<FooterSettings> {
-  return request('/settings/footer');
+  const data = await request<RawFooterSettings>('/settings/footer');
+  const direct = normalizeFooterSettings(data);
+  if (hasFooterValues(direct)) return direct;
+
+  const grouped = await request<SettingsGrouped>('/settings');
+  return normalizeFooterSettings(grouped.footer ?? grouped.Footer ?? grouped);
 }
 
 export async function updateFooterSettings(
@@ -1510,12 +1933,14 @@ export async function deleteAttributeValue(attributeId: string, valueId: string)
 export interface SupplierConfig {
   id: string;
   name: string;
-  type: 'CSV' | 'API';
+  type: 'CSV' | 'API' | string;
   url?: string;
+  apiUrl?: string;
   encoding?: string;
   delimiter?: string;
   columnMapping?: Record<string, string>;
-  headers?: Record<string, string>;
+  headers?: Record<string, string> | string;
+  apiHeaders?: Record<string, string> | string;
   isActive: boolean;
   createdAt: string;
 }
@@ -1525,6 +1950,57 @@ export interface ImportResult {
   updated: number;
   skipped: number;
   errors: string[];
+}
+
+export interface MinottiB2BFilters {
+  brands: string[];
+  categories: string[];
+  subcategories: string[];
+}
+
+export interface MinottiCatalogStructure {
+  brands: string[];
+  categories: string[];
+  subcategories: Record<string, string[]>;
+}
+
+export interface MinottiB2BImportOptions {
+  brands?: string[];
+  categories?: string[];
+  subcategories?: string[];
+  pageSize?: number;
+  includeDetails?: boolean;
+  replaceImages?: boolean;
+}
+
+type RawMinottiB2BFilters = Partial<Record<'brands' | 'brand' | 'categories' | 'category' | 'subcategories' | 'subcategory' | 'filters', unknown>>;
+
+function normalizeFilterList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object') {
+        const record = item as Record<string, unknown>;
+        const candidate = record.name ?? record.value ?? record.label ?? record.title;
+        return typeof candidate === 'string' ? candidate : '';
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'sr-Latn-RS'));
+}
+
+function normalizeMinottiB2BFilters(filters: RawMinottiB2BFilters): MinottiB2BFilters {
+  const source = filters.filters && typeof filters.filters === 'object'
+    ? filters.filters as RawMinottiB2BFilters
+    : filters;
+
+  return {
+    brands: normalizeFilterList(source.brands ?? source.brand),
+    categories: normalizeFilterList(source.categories ?? source.category),
+    subcategories: normalizeFilterList(source.subcategories ?? source.subcategory),
+  };
 }
 
 export async function getSuppliers(): Promise<SupplierConfig[]> {
@@ -1560,6 +2036,34 @@ export async function runCsvImport(supplierId: string, file: File): Promise<Impo
   return (body.data ?? body) as ImportResult;
 }
 
-export async function runApiImport(supplierId: string): Promise<ImportResult> {
-  return request(`/import/suppliers/${supplierId}/run-api`, { method: 'POST' });
+export async function getMinottiB2BFilters(supplierId: string): Promise<MinottiB2BFilters> {
+  const filters = await request<RawMinottiB2BFilters>(`/import/suppliers/${supplierId}/minotti-b2b/filters`);
+  return normalizeMinottiB2BFilters(filters);
+}
+
+export async function getMinottiB2BCatalogStructure(supplierId: string): Promise<MinottiCatalogStructure> {
+  const res = await request<{ brands: string[]; categories: string[]; subcategories: Record<string, string[]> }>(
+    `/import/suppliers/${supplierId}/minotti-b2b/catalog-structure`,
+  );
+  return {
+    brands: Array.isArray(res.brands) ? res.brands : [],
+    categories: Array.isArray(res.categories) ? res.categories : [],
+    subcategories: res.subcategories && typeof res.subcategories === 'object' && !Array.isArray(res.subcategories)
+      ? res.subcategories
+      : {},
+  };
+}
+
+export async function runApiImport(supplierId: string, options?: MinottiB2BImportOptions): Promise<ImportResult> {
+  return request(`/import/suppliers/${supplierId}/run-api`, {
+    method: 'POST',
+    body: options ? safeJsonStringify(options) : undefined,
+  });
+}
+
+export async function runMinottiB2BImport(supplierId: string, options: MinottiB2BImportOptions): Promise<ImportResult> {
+  return request(`/import/suppliers/${supplierId}/run-minotti-b2b`, {
+    method: 'POST',
+    body: safeJsonStringify(options),
+  });
 }

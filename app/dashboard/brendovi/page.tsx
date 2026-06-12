@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DashboardLayout } from '../../../components/layout/dashboard-layout';
 import {
-  Plus, Pencil, Trash2, Loader2, X, Globe, Search, Upload, Check,
+  Plus, Pencil, Trash2, Loader2, X, Globe, Search, Upload, Check, Percent, Undo2,
 } from 'lucide-react';
 import {
-  getBrands, createBrand, updateBrand, deleteBrand, type Brand,
+  getBrands, createBrand, updateBrand, deleteBrand,
+  applyBrandPriceAdjustment, undoBrandPriceAdjustment,
+  type Brand,
 } from '../../../lib/api/client';
 import { uploadBrandLogo, deleteUpload } from '../../../lib/api/upload';
 
@@ -15,15 +17,13 @@ import { uploadBrandLogo, deleteUpload } from '../../../lib/api/upload';
 function slugify(str: string) {
   return str
     .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
 
 const INPUT = 'w-full px-3 py-2.5 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40';
 const INPUT_SM = 'w-full px-3 py-2 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40';
-
-// ── empty form ────────────────────────────────────────────────────────────────
 
 const EMPTY = {
   name: '',
@@ -34,7 +34,178 @@ const EMPTY = {
   isActive: true,
 };
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3500);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-foreground text-background text-sm px-5 py-3 rounded-xl shadow-xl whitespace-nowrap">
+      {message}
+    </div>
+  );
+}
+
+// ── PriceAdjustmentModal ──────────────────────────────────────────────────────
+
+function PriceAdjustmentModal({
+  brand,
+  onClose,
+  onSuccess,
+}: {
+  brand: Brand;
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+}) {
+  const [percent, setPercent] = useState('');
+  const [applying, setApplying] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+  const [error, setError] = useState('');
+  const [confirmStep, setConfirmStep] = useState(false);
+
+  const current = brand.priceAdjustmentPercent;
+  const previous = brand.previousPriceAdjustmentPercent;
+  const parsedPercent = parseFloat(percent);
+  const validPercent = !isNaN(parsedPercent) && percent.trim() !== '';
+
+  async function handleApply() {
+    if (!validPercent) { setError('Unesite validan broj'); return; }
+    if (!confirmStep) { setConfirmStep(true); return; }
+    setApplying(true); setError('');
+    try {
+      const result = await applyBrandPriceAdjustment(brand.id, parsedPercent);
+      const sign = parsedPercent > 0 ? '+' : '';
+      onSuccess(`Uspešno ažurirano ${result.updatedCount} proizvoda za ${sign}${parsedPercent}%`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Greška pri primeni korekcije');
+      setConfirmStep(false);
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  async function handleUndo() {
+    setUndoing(true); setError('');
+    try {
+      const result = await undoBrandPriceAdjustment(brand.id);
+      onSuccess(`Uspešno vraćeno ${result.updatedCount} proizvoda na prethodne cene`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Greška pri undo operaciji');
+    } finally {
+      setUndoing(false);
+    }
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { if (confirmStep) setConfirmStep(false); else onClose(); }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, confirmStep]);
+
+  const sign = parsedPercent > 0 ? '+' : '';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Korekcija cena</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{brand.name}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-4 sm:px-5 py-4 space-y-4">
+          {/* Current adjustment info */}
+          <div className={`rounded-xl px-4 py-3 text-sm border ${current !== null && current !== undefined ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-muted border-border text-muted-foreground'}`}>
+            {current !== null && current !== undefined
+              ? <>Trenutno primenjena korekcija: <strong>{current > 0 ? '+' : ''}{current}%</strong></>
+              : 'Nema aktivne korekcije'
+            }
+          </div>
+
+          {/* Confirm step */}
+          {confirmStep ? (
+            <div className="rounded-xl bg-orange-50 border border-orange-200 px-4 py-3 space-y-3">
+              <p className="text-sm text-orange-800">
+                Da li ste sigurni? Ovo će promeniti cene svih proizvoda brenda <strong>{brand.name}</strong> za <strong>{sign}{parsedPercent}%</strong>.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmStep(false)}
+                  className="flex-1 text-sm py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+                >
+                  Odustani
+                </button>
+                <button
+                  onClick={handleApply}
+                  disabled={applying}
+                  className="flex-1 flex items-center justify-center gap-2 text-sm py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-60 transition-colors font-medium"
+                >
+                  {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  {applying ? 'Primena...' : 'Da, primeni'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Percent input */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                  Procenat korekcije
+                </p>
+                <input
+                  type="number"
+                  value={percent}
+                  onChange={(e) => { setPercent(e.target.value); setError(''); }}
+                  className={INPUT}
+                  placeholder="npr. 10 za +10%, -5 za -5%"
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground mt-1">Pozitivan broj povećava cenu, negativan smanjuje.</p>
+              </div>
+
+              {error && <p className="text-xs text-destructive">{error}</p>}
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleApply}
+                  disabled={applying || !validPercent}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors font-medium"
+                >
+                  {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Percent className="w-4 h-4" />}
+                  {applying ? 'Primena...' : 'Primeni korekciju'}
+                </button>
+
+                {previous !== null && previous !== undefined && (
+                  <button
+                    onClick={handleUndo}
+                    disabled={undoing}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm border border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-50 transition-colors"
+                  >
+                    {undoing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                    {undoing ? 'Vraćanje...' : 'Undo poslednje korekcije'}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── BrandModal ────────────────────────────────────────────────────────────────
 
 function BrandModal({
   brand,
@@ -118,7 +289,6 @@ function BrandModal({
     }
   }
 
-  // Close on Escape
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
     window.addEventListener('keydown', onKey);
@@ -266,13 +436,16 @@ function BrandCard({
   onEdit,
   onDelete,
   onToggle,
+  onPriceAdjustment,
 }: {
   brand: Brand;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
+  onPriceAdjustment: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const adj = brand.priceAdjustmentPercent;
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col">
@@ -318,6 +491,14 @@ function BrandCard({
           <p className="text-xs text-muted-foreground line-clamp-2">{brand.description}</p>
         )}
 
+        {/* Price adjustment badge */}
+        {adj !== null && adj !== undefined && (
+          <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 w-fit">
+            <Percent className="w-3 h-3" />
+            <span>Korekcija cena: {adj > 0 ? '+' : ''}{adj}%</span>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex gap-2 mt-auto pt-2 border-t border-border/50">
           {confirmDelete ? (
@@ -344,6 +525,13 @@ function BrandCard({
                 <Pencil className="w-3 h-3" /> Izmeni
               </button>
               <button
+                onClick={onPriceAdjustment}
+                title="Korekcija cena"
+                className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 border border-border rounded-lg text-muted-foreground hover:text-amber-700 hover:border-amber-300 transition-colors"
+              >
+                <Percent className="w-3 h-3" />
+              </button>
+              <button
                 onClick={() => setConfirmDelete(true)}
                 className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 border border-border rounded-lg text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
               >
@@ -364,6 +552,8 @@ export default function BrandPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<{ open: boolean; brand: Brand | null }>({ open: false, brand: null });
+  const [priceModal, setPriceModal] = useState<Brand | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -404,6 +594,12 @@ export default function BrandPage() {
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Greška pri izmeni statusa');
     }
+  }
+
+  function handlePriceSuccess(msg: string) {
+    setPriceModal(null);
+    setToast(msg);
+    load();
   }
 
   const filtered = brands.filter((b) =>
@@ -448,7 +644,7 @@ export default function BrandPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="grid [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))] gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="h-52 rounded-xl bg-muted animate-pulse" />
             ))}
@@ -460,7 +656,7 @@ export default function BrandPage() {
             </p>
           </div>
         ) : (
-          <div className="grid [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))] gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {filtered.map((b) => (
               <BrandCard
                 key={b.id}
@@ -468,13 +664,14 @@ export default function BrandPage() {
                 onEdit={() => openEdit(b)}
                 onDelete={() => handleDelete(b.id)}
                 onToggle={() => handleToggle(b)}
+                onPriceAdjustment={() => setPriceModal(b)}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Modal */}
+      {/* Edit/Create Modal */}
       {modal.open && (
         <BrandModal
           brand={modal.brand}
@@ -482,6 +679,18 @@ export default function BrandPage() {
           onSaved={handleSaved}
         />
       )}
+
+      {/* Price Adjustment Modal */}
+      {priceModal && (
+        <PriceAdjustmentModal
+          brand={priceModal}
+          onClose={() => setPriceModal(null)}
+          onSuccess={handlePriceSuccess}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </DashboardLayout>
   );
 }

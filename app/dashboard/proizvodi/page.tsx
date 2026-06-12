@@ -241,7 +241,7 @@ export default function ProizvodiPage() {
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">CENA</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">ZALIHE</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">STATUS</th>
-                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">AKCIJE</th>
+                      <th className="w-16 text-right px-2 py-3 font-medium text-muted-foreground">AKCIJE</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -270,9 +270,9 @@ export default function ProizvodiPage() {
                           <div className="font-medium">{formatPrice(p.price)}</div>
                           {p.salePrice && <div className="text-xs text-primary">{formatPrice(p.salePrice)}</div>}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {p.stock === 0 && p.inStock ? (
-                            <span className="inline-flex w-fit items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600 ring-1 ring-blue-200">
+                            <span className="inline-flex w-fit items-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600 ring-1 ring-blue-200">
                               Na lageru
                             </span>
                           ) : (
@@ -283,7 +283,7 @@ export default function ProizvodiPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-1 items-start">
-                            <span className={`inline-flex w-fit items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                            <span className={`inline-flex w-fit items-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${
                               p.isActive
                                 ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
                                 : 'bg-red-50 text-red-600 ring-1 ring-red-200'
@@ -291,13 +291,13 @@ export default function ProizvodiPage() {
                               {p.isActive ? 'Aktivan' : 'Neaktivan'}
                             </span>
                             {p.stock === 0 && !p.inStock && (
-                              <span className="inline-flex w-fit items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-600 ring-1 ring-amber-200">
+                              <span className="inline-flex w-fit items-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-600 ring-1 ring-amber-200">
                                 Nema na lageru
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="w-16 px-2 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <a
                               href={`/dashboard/proizvodi/${p.id}`}

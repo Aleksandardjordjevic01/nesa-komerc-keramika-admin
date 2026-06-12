@@ -19,6 +19,7 @@ import {
   FileText,
   Globe,
 } from 'lucide-react';
+import { CheckboxDropdown } from '../../../components/shared/checkbox-dropdown';
 import {
   getSuppliers,
   createSupplier,
@@ -26,8 +27,12 @@ import {
   deleteSupplier,
   runCsvImport,
   runApiImport,
+  getMinottiB2BCatalogStructure,
+  runMinottiB2BImport,
   type SupplierConfig,
   type ImportResult,
+  type MinottiCatalogStructure,
+  type MinottiB2BImportOptions,
 } from '../../../lib/api/client';
 
 // ── Supplier modal ────────────────────────────────────────────────────────────
@@ -36,6 +41,7 @@ const EMPTY_SUPPLIER: Omit<SupplierConfig, 'id' | 'createdAt'> = {
   name: '',
   type: 'CSV',
   url: '',
+  apiUrl: '',
   encoding: 'utf-8',
   delimiter: ',',
   columnMapping: {
@@ -47,8 +53,34 @@ const EMPTY_SUPPLIER: Omit<SupplierConfig, 'id' | 'createdAt'> = {
     description: 'Opis',
   },
   headers: {},
+  apiHeaders: {},
   isActive: true,
 };
+
+function normalizeImportType(supplier?: SupplierConfig | null): 'CSV' | 'API' {
+  if (!supplier) return 'CSV';
+  const type = String(supplier.type ?? '').toUpperCase();
+  return type === 'CSV' && !supplier.apiUrl ? 'CSV' : 'API';
+}
+
+function parseHeaders(headers?: SupplierConfig['headers'] | SupplierConfig['apiHeaders']): Record<string, string> {
+  if (!headers) return {};
+  if (typeof headers !== 'string') return headers;
+
+  try {
+    const parsed = JSON.parse(headers) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>).map(([key, value]) => [key, String(value ?? '')]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function serializeHeaders(headers: Record<string, string>): string {
+  return JSON.stringify(headers);
+}
 
 function SupplierModal({
   initial,
@@ -63,12 +95,14 @@ function SupplierModal({
     initial
       ? {
           name: initial.name,
-          type: initial.type,
-          url: initial.url ?? '',
+          type: normalizeImportType(initial),
+          url: initial.url ?? initial.apiUrl ?? '',
+          apiUrl: initial.apiUrl ?? initial.url ?? '',
           encoding: initial.encoding ?? 'utf-8',
           delimiter: initial.delimiter ?? ',',
           columnMapping: initial.columnMapping ?? EMPTY_SUPPLIER.columnMapping,
-          headers: initial.headers ?? {},
+          headers: parseHeaders(initial.headers ?? initial.apiHeaders),
+          apiHeaders: parseHeaders(initial.apiHeaders ?? initial.headers),
           isActive: initial.isActive,
         }
       : { ...EMPTY_SUPPLIER, columnMapping: { ...EMPTY_SUPPLIER.columnMapping } },
@@ -86,23 +120,69 @@ function SupplierModal({
     setForm((p) => ({ ...p, columnMapping: { ...(p.columnMapping ?? {}), [field]: col } }));
   }
 
+  function setApiUrl(value: string) {
+    setForm((p) => ({ ...p, url: value, apiUrl: value }));
+  }
+
+  function setHeader(key: string, value: string) {
+    setForm((p) => ({
+      ...p,
+      headers: { ...parseHeaders(p.headers), [key]: value },
+      apiHeaders: { ...parseHeaders(p.apiHeaders), [key]: value },
+    }));
+  }
+
+  function buildSupplierPayload(): Omit<SupplierConfig, 'id' | 'createdAt'> {
+    if (form.type === 'API') {
+      const apiUrl = (form.apiUrl ?? form.url ?? '').trim();
+      const apiKey = (parseHeaders(form.apiHeaders)['X-API-Key'] ?? parseHeaders(form.headers)['X-API-Key'] ?? '').trim();
+
+      return {
+        name: form.name.trim(),
+        type: 'API',
+        url: apiUrl,
+        apiUrl,
+        headers: serializeHeaders(apiKey ? { 'X-API-Key': apiKey } : {}),
+        apiHeaders: serializeHeaders(apiKey ? { 'X-API-Key': apiKey } : {}),
+        isActive: form.isActive,
+      };
+    }
+
+    return {
+      ...form,
+      name: form.name.trim(),
+      type: 'CSV',
+    };
+  }
+
   async function handleSave() {
     if (!form.name.trim()) { setErr('Naziv je obavezan.'); return; }
     setSaving(true); setErr('');
     try {
       let result: SupplierConfig;
+      const payload = buildSupplierPayload();
       if (initial) {
-        result = await updateSupplier(initial.id, form);
+        result = await updateSupplier(initial.id, payload);
       } else {
-        result = await createSupplier(form);
+        result = await createSupplier(payload);
       }
-      onSave(result);
+      onSave({
+        ...(initial ?? {}),
+        ...result,
+        type: payload.type,
+        url: result.url ?? result.apiUrl ?? payload.url ?? payload.apiUrl,
+        apiUrl: result.apiUrl ?? payload.apiUrl ?? initial?.apiUrl,
+        apiHeaders: result.apiHeaders ?? payload.apiHeaders,
+        headers: result.headers ?? payload.headers,
+      });
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Greška pri čuvanju.');
     } finally {
       setSaving(false);
     }
   }
+
+  const apiKey = (parseHeaders(form.apiHeaders)['X-API-Key'] ?? parseHeaders(form.headers)['X-API-Key'] ?? '');
 
   const FIELD_LABELS: Record<string, string> = {
     sku: 'SKU',
@@ -166,14 +246,26 @@ function SupplierModal({
 
           {/* URL (for API type) */}
           {form.type === 'API' && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">API URL</p>
-              <input
-                value={form.url ?? ''}
-                onChange={(e) => setField('url', e.target.value)}
-                placeholder="https://api.dobavljac.rs/products"
-                className="w-full px-4 py-3 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
-              />
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">API URL</p>
+                <input
+                  value={form.apiUrl ?? form.url ?? ''}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                  placeholder="https://api.dobavljac.rs/products"
+                  className="w-full px-4 py-3 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">X-API-Key</p>
+                <input
+                  value={apiKey}
+                  onChange={(e) => setHeader('X-API-Key', e.target.value)}
+                  placeholder="Unesite API ključ"
+                  className="w-full px-4 py-3 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
             </div>
           )}
 
@@ -201,26 +293,27 @@ function SupplierModal({
             </div>
           )}
 
-          {/* Column mapping */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Mapiranje kolona</p>
-            <div className="border border-border rounded-xl overflow-hidden">
-              <div className="grid grid-cols-2 px-3 py-2 bg-muted/30 text-xs font-medium text-muted-foreground border-b border-border">
-                <span>Polje sistema</span>
-                <span>Kolona u fajlu</span>
-              </div>
-              {mappingEntries.map(([field, col]) => (
-                <div key={field} className="grid grid-cols-2 items-center px-3 py-2 border-b border-border last:border-0 gap-2">
-                  <span className="text-sm text-foreground">{FIELD_LABELS[field] ?? field}</span>
-                  <input
-                    value={col}
-                    onChange={(e) => setMapping(field, e.target.value)}
-                    className="text-sm px-2 py-1.5 border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
+          {form.type === 'CSV' && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Mapiranje kolona</p>
+              <div className="border border-border rounded-xl overflow-hidden">
+                <div className="grid grid-cols-2 px-3 py-2 bg-muted/30 text-xs font-medium text-muted-foreground border-b border-border">
+                  <span>Polje sistema</span>
+                  <span>Kolona u fajlu</span>
                 </div>
-              ))}
+                {mappingEntries.map(([field, col]) => (
+                  <div key={field} className="grid grid-cols-2 items-center px-3 py-2 border-b border-border last:border-0 gap-2">
+                    <span className="text-sm text-foreground">{FIELD_LABELS[field] ?? field}</span>
+                    <input
+                      value={col}
+                      onChange={(e) => setMapping(field, e.target.value)}
+                      className="text-sm px-2 py-1.5 border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Active */}
           <div className="flex items-center justify-between px-1">
@@ -301,6 +394,68 @@ function ResultPanel({ result, onClose }: { result: ImportResult; onClose: () =>
 
 // ── Supplier card ─────────────────────────────────────────────────────────────
 
+function isMinottiB2B(supplier: SupplierConfig) {
+  const haystack = `${supplier.name} ${supplier.type} ${supplier.url ?? ''} ${supplier.apiUrl ?? ''}`.toLowerCase();
+  return haystack.includes('minotti') || haystack.includes('b2b');
+}
+
+function toggleValue(values: string[], value: string) {
+  return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
+}
+
+function selectedSummary(values: string[]) {
+  if (values.length === 0) return 'Nije izabrano';
+  if (values.length <= 2) return values.join(', ');
+  return `${values.slice(0, 2).join(', ')} +${values.length - 2}`;
+}
+
+function FilterCheckboxList({
+  title,
+  values,
+  selected,
+  onToggle,
+  loading,
+  emptyLabel = 'Nema dostupnih opcija',
+}: {
+  title: string;
+  values: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  loading?: boolean;
+  emptyLabel?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
+        {selected.length > 0 && <span className="text-xs text-primary font-medium">{selected.length}</span>}
+      </div>
+      <div className="border border-border rounded-xl bg-card max-h-40 overflow-y-auto">
+        {loading ? (
+          <div className="p-3 space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-4 bg-muted rounded animate-pulse" />)}
+          </div>
+        ) : values.length === 0 ? (
+          <div className="px-3 py-4 text-xs text-muted-foreground">{emptyLabel}</div>
+        ) : (
+          values.map((value) => (
+            <label key={value} className="flex items-center gap-2 px-3 py-2 border-b border-border last:border-0 hover:bg-muted/40 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selected.includes(value)}
+                onChange={() => onToggle(value)}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              <span className="text-xs text-foreground truncate" title={value}>{value}</span>
+            </label>
+          ))
+        )}
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground truncate">{selectedSummary(selected)}</p>
+    </div>
+  );
+}
+
 function SupplierCard({
   supplier,
   onEdit,
@@ -316,7 +471,37 @@ function SupplierCard({
   const [runErr, setRunErr] = useState('');
   const [confirmDel, setConfirmDel] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [filters, setFilters] = useState<MinottiCatalogStructure>({ brands: [], categories: [], subcategories: {} });
+  const [filtersLoading, setFiltersLoading] = useState(false);
+  const [filtersErr, setFiltersErr] = useState('');
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
+  const availableSubcategories = [...new Set(selectedCategories.flatMap((c) => filters.subcategories[c] ?? []))];
+  const [pageSize, setPageSize] = useState(100);
+  const [includeDetails, setIncludeDetails] = useState(true);
+  const [replaceImages, setReplaceImages] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const minottiB2B = isMinottiB2B(supplier);
+  const hasMinottiSelection = selectedBrands.length > 0 || selectedCategories.length > 0;
+
+  const loadFilters = useCallback(async () => {
+    if (!minottiB2B) return;
+    setFiltersLoading(true);
+    setFiltersErr('');
+    try {
+      const f = await getMinottiB2BCatalogStructure(supplier.id);
+      setFilters(f);
+    } catch (e: unknown) {
+      setFiltersErr(e instanceof Error ? e.message : 'Greška pri učitavanju kataloga.');
+    } finally {
+      setFiltersLoading(false);
+    }
+  }, [minottiB2B, supplier.id]);
+
+  useEffect(() => {
+    loadFilters();
+  }, [loadFilters]);
 
   async function handleCsvRun(file: File) {
     setRunning(true); setResult(null); setRunErr('');
@@ -332,6 +517,28 @@ function SupplierCard({
     setRunning(true); setResult(null); setRunErr('');
     try {
       const r = await runApiImport(supplier.id);
+      setResult(r);
+    } catch (e) {
+      setRunErr(e instanceof Error ? e.message : 'Greška pri uvozu.');
+    } finally { setRunning(false); }
+  }
+
+  async function handleMinottiRun() {
+    if (!hasMinottiSelection) {
+      setRunErr('Izaberite bar jedan brend ili kategoriju pre pokretanja Minotti B2B uvoza.');
+      return;
+    }
+    setRunning(true); setResult(null); setRunErr('');
+    try {
+      const options: MinottiB2BImportOptions = {
+        pageSize,
+        includeDetails,
+        replaceImages,
+      };
+      if (selectedBrands.length > 0) options.brands = selectedBrands;
+      if (selectedCategories.length > 0) options.categories = selectedCategories;
+      if (selectedCategories.length > 0 && selectedSubcategories.length > 0) options.subcategories = selectedSubcategories;
+      const r = await runMinottiB2BImport(supplier.id, options);
       setResult(r);
     } catch (e) {
       setRunErr(e instanceof Error ? e.message : 'Greška pri uvozu.');
@@ -358,14 +565,16 @@ function SupplierCard({
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${supplier.isActive ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
               {supplier.isActive ? 'Aktivan' : 'Neaktivan'}
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">{supplier.type}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">{normalizeImportType(supplier)}</span>
           </div>
-          {supplier.url && <p className="text-xs text-muted-foreground truncate mt-0.5">{supplier.url}</p>}
+          {(supplier.url ?? supplier.apiUrl) && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5">{supplier.apiUrl ?? supplier.url}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
           {/* Run button */}
-          {supplier.type === 'CSV' ? (
+          {normalizeImportType(supplier) === 'CSV' ? (
             <>
               <input
                 ref={fileRef}
@@ -386,9 +595,9 @@ function SupplierCard({
             </>
           ) : (
             <button
-              onClick={handleApiRun}
-              disabled={running || !supplier.isActive}
-              title="Pokreni API uvoz"
+              onClick={minottiB2B ? handleMinottiRun : handleApiRun}
+              disabled={running || !supplier.isActive || (minottiB2B && (!hasMinottiSelection || filtersLoading))}
+              title={minottiB2B ? 'Pokreni Minotti B2B uvoz' : 'Pokreni API uvoz'}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
@@ -429,6 +638,118 @@ function SupplierCard({
         <div className="mx-4 mb-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{runErr}</div>
       )}
 
+      {minottiB2B && (
+        <div className="mx-4 mb-3 border border-border rounded-xl bg-muted/10 p-4 space-y-4">
+          {/* Panel header */}
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Minotti B2B filteri</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Izaberite brendove, kategorije ili podkategorije koje želite da povučete.
+              </p>
+            </div>
+            <button
+              onClick={loadFilters}
+              disabled={filtersLoading}
+              title="Osveži dostupne opcije"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 shrink-0"
+            >
+              {filtersLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {filtersLoading ? 'Učitavanje...' : 'Sync'}
+            </button>
+          </div>
+
+          {/* API key warning */}
+          {!parseHeaders(supplier.apiHeaders ?? supplier.headers)['X-API-Key'] && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-medium text-amber-800">API ključ nije podešen</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Otvorite <button onClick={onEdit} className="underline font-medium">podešavanja dobavljača</button> i unesite X-API-Key da biste mogli da povučete listu brendova i kategorija.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error */}
+          {filtersErr && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              <span className="text-xs text-red-700 flex-1">{filtersErr}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <CheckboxDropdown
+              title="Brendovi"
+              values={filters.brands}
+              selected={selectedBrands}
+              onToggle={(v) => setSelectedBrands((prev) => toggleValue(prev, v))}
+              onClear={() => setSelectedBrands([])}
+              loading={filtersLoading}
+              placeholder="Svi brendovi"
+            />
+            <CheckboxDropdown
+              title="Kategorije"
+              values={filters.categories}
+              selected={selectedCategories}
+              onToggle={(v) => {
+                const next = toggleValue(selectedCategories, v);
+                setSelectedCategories(next);
+                const validSubs = next.flatMap((c) => filters.subcategories[c] ?? []);
+                setSelectedSubcategories((prev) => prev.filter((s) => validSubs.includes(s)));
+              }}
+              onClear={() => { setSelectedCategories([]); setSelectedSubcategories([]); }}
+              loading={filtersLoading}
+              placeholder="Sve kategorije"
+            />
+            <CheckboxDropdown
+              title="Podkategorije"
+              values={availableSubcategories}
+              selected={selectedSubcategories}
+              onToggle={(v) => setSelectedSubcategories((prev) => toggleValue(prev, v))}
+              onClear={() => setSelectedSubcategories([])}
+              loading={filtersLoading}
+              disabled={selectedCategories.length === 0}
+              disabledPlaceholder="Prvo izaberi kategoriju"
+              placeholder="Sve podkategorije"
+            />
+            <CheckboxDropdown
+              title="Opcije"
+              values={['Detalji', 'Zameni slike']}
+              selected={[
+                ...(includeDetails ? ['Detalji'] : []),
+                ...(replaceImages ? ['Zameni slike'] : []),
+              ]}
+              onToggle={(v) => {
+                if (v === 'Detalji') setIncludeDetails((p) => !p);
+                else if (v === 'Zameni slike') setReplaceImages((p) => !p);
+              }}
+              loading={filtersLoading}
+              placeholder="Nema izabranih opcija"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              Page size
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={pageSize}
+                onChange={(e) => setPageSize(Math.max(1, Number(e.target.value) || 100))}
+                className="w-20 px-2 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </label>
+            {!hasMinottiSelection && (
+              <p className="text-xs text-amber-600">Izaberite bar jedan brend ili kategoriju da uvoz ne povuče sve.</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Result */}
       {result && (
         <div className="mx-4 mb-3">
@@ -436,24 +757,56 @@ function SupplierCard({
         </div>
       )}
 
-      {/* Mapping preview */}
+      {/* Expanded details */}
       {expanded && (
         <div className="border-t border-border px-4 py-3 bg-muted/10">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Mapiranje kolona</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {Object.entries(supplier.columnMapping ?? {}).map(([field, col]) => (
-              <div key={field} className="flex items-center gap-1 text-xs">
-                <span className="text-muted-foreground">{field}</span>
-                <span className="text-muted-foreground">→</span>
-                <span className="font-medium text-foreground">{col}</span>
+          {normalizeImportType(supplier) === 'CSV' ? (
+            <>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Mapiranje kolona</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {Object.entries(supplier.columnMapping ?? {}).map(([field, col]) => (
+                  <div key={field} className="flex items-center gap-1 text-xs">
+                    <span className="text-muted-foreground">{field}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-medium text-foreground">{col}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {supplier.encoding && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Encoding: <span className="font-medium text-foreground">{supplier.encoding}</span>
-              {supplier.delimiter && <> · Delimiter: <span className="font-medium text-foreground">{supplier.delimiter === ',' ? 'zarez (,)' : supplier.delimiter === ';' ? 'tačka-zarez (;)' : supplier.delimiter}</span></>}
-            </p>
+              {supplier.encoding && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Encoding: <span className="font-medium text-foreground">{supplier.encoding}</span>
+                  {supplier.delimiter && <> · Delimiter: <span className="font-medium text-foreground">{supplier.delimiter === ',' ? 'zarez (,)' : supplier.delimiter === ';' ? 'tačka-zarez (;)' : supplier.delimiter}</span></>}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">API konfiguracija</p>
+              {(supplier.apiUrl ?? supplier.url) && (
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="text-xs text-muted-foreground shrink-0 mt-0.5">URL:</span>
+                  <span className="text-xs font-mono text-foreground break-all">{supplier.apiUrl ?? supplier.url}</span>
+                </div>
+              )}
+              {(() => {
+                const headers = parseHeaders(supplier.apiHeaders ?? supplier.headers);
+                const entries = Object.entries(headers);
+                if (entries.length === 0) return (
+                  <p className="text-xs text-muted-foreground">Nema konfiguriranih headera.</p>
+                );
+                return (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground mb-1">Headers:</p>
+                    {entries.map(([k, v]) => (
+                      <div key={k} className="flex items-center gap-2 text-xs font-mono">
+                        <span className="text-muted-foreground">{k}:</span>
+                        <span className="text-foreground">{v.replace(/.(?=.{4})/g, '•')}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </>
           )}
         </div>
       )}

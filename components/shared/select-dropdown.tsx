@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
@@ -23,37 +23,60 @@ export function SelectDropdown({ options, value, onChange, className = '' }: Sel
 
   const selected = options.find((o) => o.value === value) ?? options[0];
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      if (triggerRef.current && !triggerRef.current.contains(target)) {
-        const portal = document.getElementById('select-dropdown-portal');
-        if (!portal || !portal.contains(target)) {
-          setOpen(false);
-        }
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  const calcStyle = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const MAX_HEIGHT = 280;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const goUp = spaceBelow < MAX_HEIGHT && spaceAbove > spaceBelow;
+    setDropdownStyle({
+      position: 'fixed',
+      top: goUp ? rect.top - Math.min(MAX_HEIGHT, spaceAbove) - 4 : rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      maxHeight: goUp ? Math.min(MAX_HEIGHT, spaceAbove) : Math.min(MAX_HEIGHT, spaceBelow),
+      zIndex: 9999,
+    });
   }, []);
 
   function handleToggle() {
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const optionHeight = 40;
-      const listHeight = Math.min(options.length * optionHeight, 240);
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const goUp = spaceBelow < listHeight && rect.top > listHeight;
-      setDropdownStyle({
-        position: 'fixed',
-        top: goUp ? rect.top - listHeight - 4 : rect.bottom + 4,
-        left: rect.left,
-        width: rect.width,
-        zIndex: 9999,
-      });
-    }
+    if (!open) calcStyle();
     setOpen((p) => !p);
   }
+
+  // Reposition on scroll/resize; close if trigger scrolled out of view
+  useEffect(() => {
+    if (!open) return;
+    function onScroll() {
+      if (!triggerRef.current) return setOpen(false);
+      const rect = triggerRef.current.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        setOpen(false);
+      } else {
+        calcStyle();
+      }
+    }
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [open, calcStyle]);
+
+  // Close on outside click
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      const portal = document.getElementById('select-dropdown-portal');
+      if (portal?.contains(target)) return;
+      setOpen(false);
+    }
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, []);
 
   return (
     <div className={className}>
@@ -71,7 +94,7 @@ export function SelectDropdown({ options, value, onChange, className = '' }: Sel
         <div
           id="select-dropdown-portal"
           style={dropdownStyle}
-          className="rounded-xl border border-border bg-white dark:bg-card shadow-lg overflow-hidden"
+          className="rounded-xl border border-border bg-white dark:bg-card shadow-lg overflow-y-auto"
         >
           {options.map((opt) => (
             <button

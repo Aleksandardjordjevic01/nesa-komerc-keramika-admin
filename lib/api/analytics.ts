@@ -100,6 +100,45 @@ export interface AnalyticsParams {
   to?: string;   // YYYY-MM-DD
 }
 
+type AnalyticsCustomer =
+  | string
+  | {
+      firstName?: string | null;
+      lastName?: string | null;
+      email?: string | null;
+      displayName?: string | null;
+      name?: string | null;
+    }
+  | null
+  | undefined;
+
+type RawAnalyticsRecentOrder = Omit<AnalyticsRecentOrder, 'customer'> & {
+  customer?: AnalyticsCustomer;
+  user?: AnalyticsCustomer;
+};
+
+type RawAnalyticsData = Omit<AnalyticsData, 'recentOrders'> & {
+  recentOrders?: RawAnalyticsRecentOrder[];
+};
+
+function formatCustomer(customer: AnalyticsCustomer): string {
+  if (!customer) return '—';
+  if (typeof customer === 'string') return customer;
+
+  const fullName = `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim();
+  return customer.displayName || customer.name || fullName || customer.email || '—';
+}
+
+function normalizeAnalytics(data: RawAnalyticsData): AnalyticsData {
+  return {
+    ...data,
+    recentOrders: data.recentOrders?.map((order) => ({
+      ...order,
+      customer: formatCustomer(order.customer ?? order.user),
+    })),
+  };
+}
+
 export async function getAnalytics(params: AnalyticsParams = {}): Promise<AnalyticsData> {
   const qs = new URLSearchParams();
   if (params.from && params.to) {
@@ -108,5 +147,6 @@ export async function getAnalytics(params: AnalyticsParams = {}): Promise<Analyt
   } else {
     qs.set('period', params.period ?? 'month');
   }
-  return request<AnalyticsData>(`/analytics?${qs.toString()}`);
+  const data = await request<RawAnalyticsData>(`/analytics?${qs.toString()}`);
+  return normalizeAnalytics(data);
 }
