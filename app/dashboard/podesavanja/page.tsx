@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Settings, Check, Loader2, Send, CheckCircle2, XCircle, Eye, EyeOff, Save, Clock, Download, AlignLeft } from 'lucide-react';
+import Link from 'next/link';
+import { Settings, Check, Loader2, Send, CheckCircle2, XCircle, Eye, EyeOff, Save, Clock, Download, AlignLeft, Bell, Layers, ChevronRight } from 'lucide-react';
 import { DashboardLayout } from '../../../components/layout/dashboard-layout';
 import {
   getAdminSettings,
   updateAdminSettingsGroup,
+  getAdminSettingsGroup,
   getSmtpSettings,
   updateSmtpSettings,
   testSmtpConnection,
@@ -14,6 +16,7 @@ import {
   getWorkingHours,
   updateWorkingHoursDay,
   exportEmails,
+  exportNewsletter,
   getFooterSettings,
   updateFooterSettings,
   type PlatformSettingItem,
@@ -699,6 +702,23 @@ export default function PodesavanjaPage() {
           <p className="text-sm text-muted-foreground mt-1">Upravljajte podešavanjima sistema</p>
         </div>
 
+        {/* Quick links */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <Link
+            href="/dashboard/podesavanja/slider"
+            className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3.5 hover:border-primary/50 hover:bg-muted/30 transition-colors group"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+              <Layers className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Slider</p>
+              <p className="text-xs text-muted-foreground">Hero sekcija sajta</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </Link>
+        </div>
+
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
             {error}
@@ -732,9 +752,11 @@ export default function PodesavanjaPage() {
 
         <ImapSection />
         <SmtpSection />
+        <NotificationsSection />
         <WorkingHoursSection />
         <FooterSection />
         <ExportEmailSection />
+        <ExportNewsletterSection />
       </div>
     </DashboardLayout>
   );
@@ -893,6 +915,100 @@ function FooterSection() {
   );
 }
 
+function NotificationsSection() {
+  const [contactEmail, setContactEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState('');
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    getAdminSettingsGroup('notifications')
+      .then((items: PlatformSettingItem[]) => {
+        const found = items.find((i) => i.key === 'notifications.contactEmail' || i.key === 'contactEmail');
+        setContactEmail(String(found?.value ?? ''));
+      })
+      .catch(() => setErr('Nije moguće učitati podešavanja obaveštenja.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setErr('');
+    try {
+      await updateAdminSettingsGroup('notifications', [
+        { key: 'contactEmail', value: contactEmail },
+      ]);
+      setSaved(true);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Greška pri čuvanju.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputCls = 'w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring';
+
+  return (
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="px-6 py-4 border-b border-border bg-muted/20 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+          <Bell className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Notifikacije</h2>
+          <p className="text-xs text-muted-foreground">Email adrese na koje stižu obaveštenja sa sajta</p>
+        </div>
+      </div>
+
+      <div className="px-6 py-5 space-y-4">
+        {loading ? (
+          <div className="h-10 bg-muted rounded-xl animate-pulse" />
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                Email za poruke sa kontakt forme
+              </label>
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="npr. kontakt@firma.rs"
+                className={inputCls}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Ako je prazno, poruke idu na SMTP korisničku adresu.
+              </p>
+            </div>
+
+            {err && <p className="text-xs text-destructive">{err}</p>}
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition-colors"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Sačuvaj
+              </button>
+              {saved && (
+                <span className="flex items-center gap-1.5 text-xs font-medium text-green-600">
+                  <Check className="h-3.5 w-3.5" /> Sačuvano
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ExportEmailSection() {
   const [loadingCsv, setLoadingCsv] = useState(false);
   const [loadingExcel, setLoadingExcel] = useState(false);
@@ -920,6 +1036,61 @@ function ExportEmailSection() {
         <div>
           <h2 className="text-sm font-semibold text-foreground">Export Email Adresa</h2>
           <p className="text-xs text-muted-foreground">Preuzmite listu email adresa svih kupaca iz porudžbina</p>
+        </div>
+      </div>
+
+      <div className="px-6 py-5 flex items-center gap-3">
+        <button
+          onClick={() => handleExport('csv')}
+          disabled={loadingCsv || loadingExcel}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition-colors"
+        >
+          {loadingCsv ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          Preuzmi CSV
+        </button>
+        <button
+          onClick={() => handleExport('excel')}
+          disabled={loadingCsv || loadingExcel}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary text-primary text-sm font-medium hover:bg-primary/5 disabled:opacity-60 transition-colors"
+        >
+          {loadingExcel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          Preuzmi Excel
+        </button>
+        {exportError && (
+          <span className="text-xs text-destructive">{exportError}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ExportNewsletterSection() {
+  const [loadingCsv, setLoadingCsv] = useState(false);
+  const [loadingExcel, setLoadingExcel] = useState(false);
+  const [exportError, setExportError] = useState('');
+
+  async function handleExport(format: 'csv' | 'excel') {
+    const setLoading = format === 'csv' ? setLoadingCsv : setLoadingExcel;
+    setLoading(true);
+    setExportError('');
+    try {
+      await exportNewsletter(format);
+    } catch {
+      setExportError('Nije moguće preuzeti fajl. Pokušajte ponovo.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="px-6 py-4 border-b border-border bg-muted/20 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
+          <Download className="w-4 h-4 text-blue-600" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Export Newsletter Pretplatnika</h2>
+          <p className="text-xs text-muted-foreground">Preuzmite listu email adresa korisnika koji su se pretplatili na newsletter</p>
         </div>
       </div>
 

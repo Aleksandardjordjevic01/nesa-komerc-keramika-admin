@@ -1778,6 +1778,22 @@ export async function exportEmails(format: 'csv' | 'excel'): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+export async function exportNewsletter(format: 'csv' | 'excel'): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/newsletter/export?format=${format}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  const blob = await res.blob();
+  const ext = format === 'excel' ? 'xlsx' : 'csv';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `newsletter.${ext}`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export interface FooterSettings {
   description: string;
   facebookUrl: string;
@@ -2101,4 +2117,62 @@ export async function runMinottiB2BImport(supplierId: string, options: MinottiB2
     method: 'POST',
     body: safeJsonStringify(options),
   });
+}
+
+// ── Slider ────────────────────────────────────────────────────────────────────
+
+export interface Slide {
+  id: string;
+  imageUrl: string;
+  title: string | null;
+  subtitle: string | null;
+  buttonText: string | null;
+  buttonUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export async function getAdminSlides(): Promise<Slide[]> {
+  return request<Slide[]>('/slider/admin');
+}
+
+export async function createSlide(dto: Omit<Slide, 'id' | 'createdAt'>): Promise<Slide> {
+  return request<Slide>('/slider', { method: 'POST', body: safeJsonStringify(dto) });
+}
+
+export async function updateSlide(id: string, dto: Partial<Omit<Slide, 'id' | 'createdAt'>>): Promise<Slide> {
+  return request<Slide>(`/slider/${id}`, { method: 'PUT', body: safeJsonStringify(dto) });
+}
+
+export async function deleteSlide(id: string): Promise<void> {
+  await request(`/slider/${id}`, { method: 'DELETE' });
+}
+
+export async function reorderSlides(items: { id: string; sortOrder: number }[]): Promise<void> {
+  await request('/slider/reorder', { method: 'PATCH', body: safeJsonStringify({ items }) });
+}
+
+export async function uploadSliderImage(file: File): Promise<string> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_URL}/upload/slider-image`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (res.status === 401) {
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = body?.message ?? `HTTP ${res.status}`;
+    throw new Error(Array.isArray(message) ? message.join(', ') : String(message));
+  }
+  const data = body?.data !== undefined ? body.data : body;
+  return (data.url ?? data.imageUrl ?? data.path) as string;
 }
