@@ -1930,9 +1930,22 @@ export async function getFooterSettings(): Promise<FooterSettings> {
 export async function updateFooterSettings(
   data: FooterSettings,
 ): Promise<{ success: boolean; message?: string }> {
+  const payload = {
+    description: data.description,
+    facebook:    data.facebookUrl,
+    instagram:   data.instagramUrl,
+    twitter:     data.twitterUrl,
+    tiktok:      data.tiktokUrl,
+    street:      data.street,
+    city:        data.city,
+    phone:       data.phone,
+    email:       data.email,
+    pib:         data.pib,
+    mb:          data.mb,
+  };
   return request('/settings/footer', {
     method: 'PUT',
-    body: safeJsonStringify(data),
+    body: safeJsonStringify(payload),
   });
 }
 
