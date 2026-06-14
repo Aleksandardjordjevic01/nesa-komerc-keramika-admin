@@ -26,6 +26,7 @@ interface BackendUser {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  orderCount?: number;
   _count?: { orders?: number };
 }
 
@@ -217,7 +218,7 @@ function mapBackendUserToListItem(u: BackendUser): AdminUserListItem {
     role: (u.role === 'admin' ? 'ADMIN' : 'USER') as UserRole,
     status: (u.isActive ? 'ACTIVE' : 'INACTIVE') as UserStatus,
     avatarUrl: null,
-    ordersCount: u._count?.orders ?? 0,
+    ordersCount: u.orderCount ?? u._count?.orders ?? 0,
     createdAt: u.createdAt,
     lastActiveAt: null,
   };
@@ -250,7 +251,7 @@ export async function getAdminUser(id: string): Promise<AdminUserDetail> {
     firstName: u.firstName ?? null,
     lastName: u.lastName ?? null,
     updatedAt: u.updatedAt,
-    stats: { ordersCount: u._count?.orders ?? 0, reklamacijeCount: 0 },
+    stats: { ordersCount: u.orderCount ?? u._count?.orders ?? 0, reklamacijeCount: 0 },
     recentOrders: [],
   };
 }
@@ -522,8 +523,11 @@ export interface Order {
   pib: string | null;
   mb: string | null;
   notes: string | null;
-  userId: string;
-  user: { id: string; firstName: string; lastName: string; email: string; phone: string | null };
+  userId: string | null;
+  user: { id: string; firstName: string; lastName: string; email: string; phone: string | null } | null;
+  guestName: string | null;
+  guestEmail: string | null;
+  guestPhone: string | null;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;
@@ -637,6 +641,37 @@ export async function updateOrder(id: string, payload: UpdateOrderPayload): Prom
 
 export async function deleteOrder(id: string): Promise<void> {
   await request<void>(`/orders/${id}`, { method: 'DELETE' });
+}
+
+export interface CreateAdminOrderItem {
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface CreateAdminOrderPayload {
+  userId?: string;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  shippingAddress: string;
+  shippingCity: string;
+  shippingZipCode: string;
+  shippingCountry: string;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  status: OrderStatus;
+  shippingCost: number;
+  discountAmount: number;
+  notes?: string;
+  companyName?: string;
+  pib?: string;
+  mb?: string;
+  items: CreateAdminOrderItem[];
+}
+
+export async function createAdminOrder(payload: CreateAdminOrderPayload): Promise<Order> {
+  return request<Order>('/orders/admin', { method: 'POST', body: safeJsonStringify(payload) });
 }
 
 export async function downloadOrderPdf(id: string, orderNumber: string): Promise<void> {

@@ -8,6 +8,7 @@ import {
   Pencil, ShoppingCart, Search, FileDown,
 } from 'lucide-react';
 import { DashboardLayout } from '../../../../components/layout/dashboard-layout';
+import { SelectDropdown } from '../../../../components/shared/select-dropdown';
 import {
   getOrder,
   updateOrder,
@@ -38,8 +39,8 @@ const NO_SPIN = ' [appearance:textfield] [&::-webkit-inner-spin-button]:appearan
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-border/50">
+    <div className="bg-card border border-border rounded-xl">
+      <div className="px-5 py-3 border-b border-border/50 rounded-t-xl">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
       <div className="p-5 space-y-4">{children}</div>
@@ -542,6 +543,14 @@ export default function OrderDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // When page opens with ?edit=true, populate the form once the order is loaded
+  useEffect(() => {
+    if (order && editMode && Object.keys(form).length === 0) {
+      enterEdit(order);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order]);
+
   function enterEdit(o: Order) {
     setForm({
       status: o.status,
@@ -552,9 +561,11 @@ export default function OrderDetailPage() {
       shippingZipCode: o.shippingZipCode ?? '',
       shippingCountry: 'Srbija',
       shippingCost: o.shippingCost,
-      guestName: `${o.user?.firstName ?? ''} ${o.user?.lastName ?? ''}`.trim(),
-      guestEmail: o.user?.email ?? '',
-      guestPhone: o.user?.phone ?? '',
+      guestName: o.user
+        ? `${o.user.firstName ?? ''} ${o.user.lastName ?? ''}`.trim()
+        : (o.guestName ?? ''),
+      guestEmail: o.user?.email ?? o.guestEmail ?? '',
+      guestPhone: o.user?.phone ?? o.guestPhone ?? '',
       companyName: o.companyName ?? '',
       pib: o.pib ?? '',
       mb: o.mb ?? '',
@@ -562,8 +573,11 @@ export default function OrderDetailPage() {
       couponCode: o.couponCode ?? '',
       discountAmount: o.discountAmount,
     });
-    setGuestFirstName(o.user?.firstName ?? '');
-    setGuestLastName(o.user?.lastName ?? '');
+    const nameParts = o.user
+      ? [o.user.firstName ?? '', o.user.lastName ?? '']
+      : (o.guestName ?? '').split(' ');
+    setGuestFirstName(nameParts[0] ?? '');
+    setGuestLastName(nameParts.slice(1).join(' '));
     setSelectedShippingCity(o.shippingCity ?? '');
     setSelectedShippingAddress(o.shippingAddress ?? '');
     setEditItems(
@@ -765,7 +779,7 @@ export default function OrderDetailPage() {
       <div className="p-4 lg:p-6 space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => router.push('/dashboard/narudzbine')}
@@ -776,12 +790,12 @@ export default function OrderDetailPage() {
             <div className="min-w-0">
               <h1 className="text-lg font-semibold text-foreground font-mono">{order.orderNumber}</h1>
               <p className="text-xs text-muted-foreground">
-                {formatDate(order.createdAt)} · {order.user?.firstName} {order.user?.lastName}
+                {formatDate(order.createdAt)}{(order.user ? ` · ${order.user.firstName} ${order.user.lastName}` : order.guestName ? ` · ${order.guestName}` : '')}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:shrink-0 pl-11 sm:pl-0">
             {/* PDF button — always visible */}
             <button
               onClick={handleDownloadPdf}
@@ -798,14 +812,14 @@ export default function OrderDetailPage() {
                 <button
                   onClick={cancelEdit}
                   disabled={saving}
-                  className="px-3 py-2 text-sm border border-border rounded-xl hover:bg-muted transition-colors disabled:opacity-50"
+                  className="hidden sm:block px-3 py-2 text-sm border border-border rounded-xl hover:bg-muted transition-colors disabled:opacity-50"
                 >
                   Odustani
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-60 transition-colors font-medium"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-60 transition-colors font-medium"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {saving ? 'Čuvanje...' : 'Sačuvaj'}
@@ -829,7 +843,8 @@ export default function OrderDetailPage() {
                       className="flex items-center gap-2 px-3 py-2 text-sm bg-destructive text-white rounded-xl hover:bg-destructive/90 disabled:opacity-60"
                     >
                       {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                      Potvrdi brisanje
+                      <span className="hidden sm:inline">Potvrdi brisanje</span>
+                      <span className="sm:hidden">Potvrdi</span>
                     </button>
                   </>
                 ) : (
@@ -862,10 +877,10 @@ export default function OrderDetailPage() {
         )}
 
         {/* Two-column grid */}
-        <div className="grid lg:grid-cols-8 gap-4">
+        <div className="grid lg:grid-cols-3 gap-4">
 
           {/* ── Left column ── */}
-          <div className="lg:col-span-5 space-y-4">
+          <div className="lg:col-span-2 space-y-4">
 
             {/* Kupac */}
             <Section title="Kupac">
@@ -873,13 +888,13 @@ export default function OrderDetailPage() {
                 <Field label="Ime">
                   {editMode
                     ? <input value={guestFirstName} onChange={(e) => setGuestFirstName(e.target.value)} className={INPUT} placeholder="Ime" />
-                    : <ViewValue value={order.user?.firstName} />
+                    : <ViewValue value={order.user?.firstName ?? (order.guestName ? order.guestName.split(' ')[0] : null)} />
                   }
                 </Field>
                 <Field label="Prezime">
                   {editMode
                     ? <input value={guestLastName} onChange={(e) => setGuestLastName(e.target.value)} className={INPUT} placeholder="Prezime" />
-                    : <ViewValue value={order.user?.lastName} />
+                    : <ViewValue value={order.user?.lastName ?? (order.guestName ? order.guestName.split(' ').slice(1).join(' ') : null)} />
                   }
                 </Field>
               </div>
@@ -887,13 +902,13 @@ export default function OrderDetailPage() {
                 <Field label="Email">
                   {editMode
                     ? <input value={form.guestEmail ?? ''} onChange={(e) => setF('guestEmail', e.target.value)} className={INPUT} placeholder="email@primer.rs" type="email" />
-                    : <ViewValue value={order.user?.email} />
+                    : <ViewValue value={order.user?.email ?? order.guestEmail} />
                   }
                 </Field>
                 <Field label="Telefon">
                   {editMode
                     ? <input value={form.guestPhone ?? ''} onChange={(e) => setF('guestPhone', e.target.value)} className={INPUT} placeholder="+381..." />
-                    : <ViewValue value={order.user?.phone} />
+                    : <ViewValue value={order.user?.phone ?? order.guestPhone} />
                   }
                 </Field>
               </div>
@@ -919,6 +934,66 @@ export default function OrderDetailPage() {
               </div>
             </Section>
 
+            {/* Adresa dostave */}
+            <Section title="Adresa dostave">
+              <div className="grid grid-cols-[3fr_2fr] gap-3">
+                <Field label="Grad">
+                  {editMode
+                    ? (
+                      <CityAutocomplete
+                        value={form.shippingCity ?? ''}
+                        onChange={(v) => {
+                          setF('shippingCity', v);
+                          setF('shippingAddress', '');
+                          setF('shippingZipCode', '');
+                          setSelectedShippingCity('');
+                          setSelectedShippingAddress('');
+                        }}
+                        onSelect={(city, postcode) => {
+                          setF('shippingCity', city);
+                          setF('shippingZipCode', postcode);
+                          setF('shippingAddress', '');
+                          setSelectedShippingCity(city);
+                          setSelectedShippingAddress('');
+                        }}
+                      />
+                    )
+                    : <ViewValue value={order.shippingCity} />
+                  }
+                </Field>
+                <Field label="Poštanski broj">
+                  {editMode
+                    ? <input value={form.shippingZipCode ?? ''} onChange={(e) => setF('shippingZipCode', e.target.value)} className={INPUT} placeholder="11000" />
+                    : <ViewValue value={order.shippingZipCode} />
+                  }
+                </Field>
+              </div>
+              <Field label="Ulica i broj">
+                {editMode
+                  ? (
+                    <AddressAutocomplete
+                      value={form.shippingAddress ?? ''}
+                      city={form.shippingCity ?? ''}
+                      disabled={!selectedShippingCity}
+                      onChange={(v) => {
+                        setF('shippingAddress', v);
+                        setSelectedShippingAddress('');
+                      }}
+                      onSelect={(address, postcode) => {
+                        setF('shippingAddress', address);
+                        setF('shippingZipCode', postcode);
+                        setSelectedShippingAddress(address);
+                      }}
+                    />
+                  )
+                  : <ViewValue value={order.shippingAddress} />
+                }
+              </Field>
+              <Field label="Zemlja">
+                <p className="text-sm text-foreground py-1">Srbija</p>
+              </Field>
+            </Section>
+
             {/* Artikli */}
             <Section title="Artikli">
               {editMode ? (
@@ -927,46 +1002,48 @@ export default function OrderDetailPage() {
                     <p className="text-sm text-muted-foreground text-center py-4">Nema artikala.</p>
                   )}
                   {editItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-3 border border-border rounded-xl bg-muted/20">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
+                    <div key={idx} className="flex flex-wrap items-center gap-3 p-3 border border-border rounded-xl bg-muted/20">
+                      {/* Name + sku */}
+                      <div className="flex-1 min-w-[160px]">
+                        <p className="text-sm font-medium text-foreground">{item.productName}</p>
                         {item.productSku && <p className="text-xs text-muted-foreground mt-0.5">{item.productSku}</p>}
                         {item.isNew && <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded mt-0.5 inline-block">Novi</span>}
                       </div>
-                      {/* Quantity */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button type="button" onClick={() => updateItem(idx, { quantity: Math.max(1, item.quantity - 1) })} className="p-1 rounded-lg border border-border hover:bg-muted transition-colors">
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <input
-                          type="number" min={1} value={item.quantity}
-                          onChange={(e) => updateItem(idx, { quantity: Math.max(1, Number(e.target.value) || 1) })}
-                          className={'w-14 text-center text-sm border border-border rounded-lg px-2 py-1.5 bg-card focus:outline-none focus:ring-2 focus:ring-primary/40' + NO_SPIN}
-                        />
-                        <button type="button" onClick={() => updateItem(idx, { quantity: item.quantity + 1 })} className="p-1 rounded-lg border border-border hover:bg-muted transition-colors">
-                          <Plus className="w-3 h-3" />
+                      {/* Controls */}
+                      <div className="flex items-center gap-2">
+                        {/* Quantity */}
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => updateItem(idx, { quantity: Math.max(1, item.quantity - 1) })} className="p-1 rounded-lg border border-border hover:bg-muted transition-colors">
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <input
+                            type="number" min={1} value={item.quantity}
+                            onChange={(e) => updateItem(idx, { quantity: Math.max(1, Number(e.target.value) || 1) })}
+                            className={'w-14 text-center text-sm border border-border rounded-lg px-2 py-1.5 bg-card focus:outline-none focus:ring-2 focus:ring-primary/40' + NO_SPIN}
+                          />
+                          <button type="button" onClick={() => updateItem(idx, { quantity: item.quantity + 1 })} className="p-1 rounded-lg border border-border hover:bg-muted transition-colors">
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                        {/* Price (read-only) */}
+                        {item.isNew ? (
+                          <span className="text-xs text-muted-foreground w-20 text-right">Cena iz baze</span>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <span className="w-24 text-right text-sm text-foreground font-medium px-3 py-1.5 border border-border rounded-xl bg-muted/40">
+                              {item.unitPrice.toLocaleString('sr-Latn-RS')}
+                            </span>
+                            <span className="text-xs text-muted-foreground">RSD</span>
+                          </div>
+                        )}
+                        {/* Remove */}
+                        <button type="button" onClick={() => removeItem(idx)} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-red-50 transition-colors">
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
-                      {/* Unit price — editable only for existing items */}
-                      {item.isNew ? (
-                        <span className="text-xs text-muted-foreground w-28 text-right shrink-0">Cena iz baze</span>
-                      ) : (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <input
-                            type="number" min={0} value={item.unitPrice}
-                            onChange={(e) => updateItem(idx, { unitPrice: Number(e.target.value) || 0 })}
-                            className={'w-28 text-right text-sm border border-border rounded-xl px-3 py-1.5 bg-card focus:outline-none focus:ring-2 focus:ring-primary/40' + NO_SPIN}
-                          />
-                          <span className="text-xs text-muted-foreground">RSD</span>
-                        </div>
-                      )}
-                      <button type="button" onClick={() => removeItem(idx)} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-red-50 transition-colors shrink-0">
-                        <X className="w-4 h-4" />
-                      </button>
                     </div>
                   ))}
 
-                  {/* Add product */}
                   {showSearch ? (
                     <div className="pt-1">
                       <ProductSearch onAdd={addProduct} />
@@ -1022,131 +1099,6 @@ export default function OrderDetailPage() {
               </div>
             </Section>
 
-          </div>
-
-          {/* ── Right column ── */}
-          <div className="lg:col-span-3 space-y-4">
-
-            {/* Status */}
-            <Section title="Status narudžbine">
-              <Field label="Status">
-                {editMode ? (
-                  <select value={form.status} onChange={(e) => setF('status', e.target.value as OrderStatus)} className={SELECT}>
-                    {Object.entries(ORDER_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                ) : (
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${ORDER_STATUS_COLORS[order.status]}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${ORDER_STATUS_DOT[order.status]}`} />
-                    {ORDER_STATUS_LABELS[order.status]}
-                  </span>
-                )}
-              </Field>
-              <Field label="Status uplate">
-                {editMode ? (
-                  <select value={form.paymentStatus} onChange={(e) => setF('paymentStatus', e.target.value as PaymentStatus)} className={SELECT}>
-                    {Object.entries(PAYMENT_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                ) : (
-                  <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[order.paymentStatus]}`}>
-                    {PAYMENT_STATUS_LABELS[order.paymentStatus]}
-                  </span>
-                )}
-              </Field>
-              <Field label="Način plaćanja">
-                {editMode ? (
-                  <select value={form.paymentMethod} onChange={(e) => setF('paymentMethod', e.target.value)} className={SELECT}>
-                    {Object.entries(PAYMENT_METHOD_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                ) : (
-                  <ViewValue value={PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod} />
-                )}
-              </Field>
-            </Section>
-
-            {/* Adresa */}
-            <Section title="Adresa dostave">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Grad">
-                  {editMode
-                    ? (
-                      <CityAutocomplete
-                        value={form.shippingCity ?? ''}
-                        onChange={(v) => {
-                          setF('shippingCity', v);
-                          setF('shippingAddress', '');
-                          setF('shippingZipCode', '');
-                          setSelectedShippingCity('');
-                          setSelectedShippingAddress('');
-                        }}
-                        onSelect={(city, postcode) => {
-                          setF('shippingCity', city);
-                          setF('shippingZipCode', postcode);
-                          setF('shippingAddress', '');
-                          setSelectedShippingCity(city);
-                          setSelectedShippingAddress('');
-                        }}
-                      />
-                    )
-                    : <ViewValue value={order.shippingCity} />
-                  }
-                </Field>
-                <Field label="Poštanski broj">
-                  {editMode
-                    ? <input value={form.shippingZipCode ?? ''} onChange={(e) => setF('shippingZipCode', e.target.value)} className={INPUT} placeholder="11000" />
-                    : <ViewValue value={order.shippingZipCode} />
-                  }
-                </Field>
-              </div>
-              <Field label="Ulica i broj">
-                {editMode
-                  ? (
-                    <AddressAutocomplete
-                      value={form.shippingAddress ?? ''}
-                      city={form.shippingCity ?? ''}
-                      disabled={!selectedShippingCity}
-                      onChange={(v) => {
-                        setF('shippingAddress', v);
-                        setSelectedShippingAddress('');
-                      }}
-                      onSelect={(address, postcode) => {
-                        setF('shippingAddress', address);
-                        setF('shippingZipCode', postcode);
-                        setSelectedShippingAddress(address);
-                      }}
-                    />
-                  )
-                  : <ViewValue value={order.shippingAddress} />
-                }
-              </Field>
-              <Field label="Država">
-                <ViewValue value="Srbija" />
-              </Field>
-              <Field label="Trošak dostave">
-                {editMode ? (
-                  <input type="number" min={0} value={form.shippingCost ?? 0} onChange={(e) => setF('shippingCost', Number(e.target.value))} className={INPUT + NO_SPIN} />
-                ) : (
-                  <ViewValue value={order.shippingCost > 0 ? formatPrice(order.shippingCost) : 'Besplatno'} />
-                )}
-              </Field>
-            </Section>
-
-            {/* Popust */}
-            <Section title="Popust">
-              <Field label="Kupon kod">
-                {editMode
-                  ? <input value={form.couponCode ?? ''} onChange={(e) => setF('couponCode', e.target.value)} className={INPUT} placeholder="PROMO10" />
-                  : <ViewValue value={order.couponCode} />
-                }
-              </Field>
-              <Field label="Iznos popusta">
-                {editMode ? (
-                  <input type="number" min={0} value={form.discountAmount ?? 0} onChange={(e) => setF('discountAmount', Number(e.target.value))} className={INPUT + NO_SPIN} />
-                ) : (
-                  <ViewValue value={order.discountAmount > 0 ? formatPrice(order.discountAmount) : null} />
-                )}
-              </Field>
-            </Section>
-
             {/* Napomena */}
             <Section title="Napomena">
               {editMode ? (
@@ -1163,6 +1115,102 @@ export default function OrderDetailPage() {
                 </p>
               )}
             </Section>
+
+          </div>
+
+          {/* ── Right column ── */}
+          <div className="lg:col-span-1 space-y-4">
+
+            {/* Status */}
+            <Section title="Status">
+              <Field label="Status narudžbine">
+                {editMode ? (
+                  <SelectDropdown
+                    value={form.status ?? order.status}
+                    onChange={(v) => setF('status', v as OrderStatus)}
+                    options={Object.entries(ORDER_STATUS_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+                  />
+                ) : (
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${ORDER_STATUS_COLORS[order.status]}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${ORDER_STATUS_DOT[order.status]}`} />
+                    {ORDER_STATUS_LABELS[order.status]}
+                  </span>
+                )}
+              </Field>
+              <Field label="Status uplate">
+                {editMode ? (
+                  <SelectDropdown
+                    value={form.paymentStatus ?? order.paymentStatus}
+                    onChange={(v) => setF('paymentStatus', v as PaymentStatus)}
+                    options={Object.entries(PAYMENT_STATUS_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+                  />
+                ) : (
+                  <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[order.paymentStatus]}`}>
+                    {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                  </span>
+                )}
+              </Field>
+              <Field label="Način plaćanja">
+                {editMode ? (
+                  <SelectDropdown
+                    value={form.paymentMethod ?? order.paymentMethod ?? ''}
+                    onChange={(v) => setF('paymentMethod', v)}
+                    options={Object.entries(PAYMENT_METHOD_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+                  />
+                ) : (
+                  <ViewValue value={PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod} />
+                )}
+              </Field>
+            </Section>
+
+            {/* Troškovi */}
+            <Section title="Troškovi i popust">
+              <Field label="Trošak dostave">
+                {editMode ? (
+                  <input type="number" min={0} value={form.shippingCost ?? 0} onChange={(e) => setF('shippingCost', Number(e.target.value))} className={INPUT + NO_SPIN} />
+                ) : (
+                  <ViewValue value={order.shippingCost > 0 ? formatPrice(order.shippingCost) : 'Besplatno'} />
+                )}
+              </Field>
+              <Field label="Kupon kod">
+                {editMode
+                  ? <input value={form.couponCode ?? ''} onChange={(e) => setF('couponCode', e.target.value)} className={INPUT} placeholder="PROMO10" />
+                  : <ViewValue value={order.couponCode} />
+                }
+              </Field>
+              <Field label="Iznos popusta">
+                {editMode ? (
+                  <input type="number" min={0} value={form.discountAmount ?? 0} onChange={(e) => setF('discountAmount', Number(e.target.value))} className={INPUT + NO_SPIN} />
+                ) : (
+                  <ViewValue value={order.discountAmount > 0 ? formatPrice(order.discountAmount) : null} />
+                )}
+              </Field>
+            </Section>
+
+            {/* Rekapitulacija (view only) */}
+            {!editMode && (
+              <div className="bg-card border border-border rounded-xl p-5 space-y-2.5">
+                <p className="text-sm font-semibold text-foreground mb-3">Rekapitulacija</p>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Međuzbir</span>
+                  <span className="font-medium text-foreground">{formatPrice(order.subtotalAmount)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Dostava</span>
+                  <span className="font-medium text-foreground">{order.shippingCost > 0 ? formatPrice(order.shippingCost) : 'Besplatno'}</span>
+                </div>
+                {order.discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Popust{order.couponCode ? ` (${order.couponCode})` : ''}</span>
+                    <span className="font-medium">−{formatPrice(order.discountAmount)}</span>
+                  </div>
+                )}
+                <div className="pt-2.5 border-t border-border flex justify-between">
+                  <span className="text-sm font-semibold text-foreground">Ukupno</span>
+                  <span className="text-base font-bold text-primary">{formatPrice(order.totalAmount)}</span>
+                </div>
+              </div>
+            )}
 
           </div>
         </div>

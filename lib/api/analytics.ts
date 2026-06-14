@@ -47,9 +47,9 @@ export interface AnalyticsDayRevenue {
 export interface AnalyticsTopProduct {
   id: string;
   name: string;
-  category: string | null;
-  soldCount: number;
-  revenue: number;
+  categoryName: string | null;
+  totalSold: number;
+  totalRevenue: number;
 }
 
 export interface AnalyticsRecentOrder {
@@ -117,7 +117,22 @@ type RawAnalyticsRecentOrder = Omit<AnalyticsRecentOrder, 'customer'> & {
   user?: AnalyticsCustomer;
 };
 
-type RawAnalyticsData = Omit<AnalyticsData, 'recentOrders'> & {
+type RawChartPoint = {
+  date?: string;
+  label?: string;
+  revenue: number | string;
+  ordersCount?: number | string;
+  orders?: number | string;
+};
+
+type RawSummary = AnalyticsData['summary'] & {
+  newUsers?: AnalyticsMetric;
+};
+
+type RawAnalyticsData = Omit<AnalyticsData, 'recentOrders' | 'revenueByDay' | 'summary'> & {
+  revenueChart?: RawChartPoint[];
+  revenueByDay?: RawChartPoint[];
+  summary: RawSummary;
   recentOrders?: RawAnalyticsRecentOrder[];
 };
 
@@ -130,8 +145,23 @@ function formatCustomer(customer: AnalyticsCustomer): string {
 }
 
 function normalizeAnalytics(data: RawAnalyticsData): AnalyticsData {
+  const rawPoints = data.revenueChart ?? data.revenueByDay;
+  const revenueByDay: AnalyticsDayRevenue[] | undefined = rawPoints?.map((d) => ({
+    date: d.date ?? d.label ?? '',
+    revenue: typeof d.revenue === 'string' ? parseFloat(d.revenue) : d.revenue,
+    ordersCount: Number(d.ordersCount ?? d.orders ?? 0),
+  }));
+
+  const rawSummary = data.summary;
+  const summary: AnalyticsData['summary'] = {
+    ...rawSummary,
+    newUsersCount: rawSummary.newUsersCount ?? rawSummary.newUsers,
+  };
+
   return {
     ...data,
+    summary,
+    revenueByDay,
     recentOrders: data.recentOrders?.map((order) => ({
       ...order,
       customer: formatCustomer(order.customer ?? order.user),

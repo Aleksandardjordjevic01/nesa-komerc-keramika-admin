@@ -81,28 +81,116 @@ function KpiCard({
   );
 }
 
-// ── Mini bar chart (CSS-based) ─────────────────────────────────────────────────
+// ── Revenue bar chart ──────────────────────────────────────────────────────────
+
+function formatDateLabel(raw: string): string {
+  // hourly: "14:00"
+  if (/^\d{2}:\d{2}$/.test(raw)) return raw;
+  // monthly: "2025-06"
+  if (/^\d{4}-\d{2}$/.test(raw)) {
+    const [y, m] = raw.split('-');
+    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('sr-Latn-RS', { month: 'short', year: '2-digit' });
+  }
+  // daily: "2025-06-13"
+  try {
+    return new Date(raw).toLocaleDateString('sr-Latn-RS', { day: '2-digit', month: 'short' });
+  } catch {
+    return raw;
+  }
+}
+
+function formatYAxis(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return String(value);
+}
 
 function RevenueBarChart({ data }: { data: Array<{ date: string; revenue: number; ordersCount: number }> }) {
-  const max = Math.max(...data.map((d) => d.revenue), 1);
+  const [tooltip, setTooltip] = useState<{ index: number; x: number; y: number } | null>(null);
+
+  const maxRaw = Math.max(...data.map((d) => d.revenue), 1);
+  // Round max up to a nice number
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxRaw)));
+  const max = Math.ceil(maxRaw / magnitude) * magnitude;
+
+  const Y_TICKS = 4;
+  const yTicks = Array.from({ length: Y_TICKS + 1 }, (_, i) => (max / Y_TICKS) * (Y_TICKS - i));
+
+  // Show at most ~12 x-axis labels to avoid crowding
+  const showEvery = Math.ceil(data.length / 12);
+
   return (
-    <div className="flex items-end gap-0.5 h-full w-full">
-      {data.map((d) => {
-        const pct = Math.max((d.revenue / max) * 100, 2);
-        const label = new Date(d.date).toLocaleDateString('sr-Latn-RS', { day: '2-digit', month: 'short' });
-        return (
-          <div
-            key={d.date}
-            className="flex-1 flex flex-col items-center gap-0.5 group relative"
-            title={`${label}: ${formatRSD(d.revenue)} (${d.ordersCount} narudžbina)`}
-          >
+    <div className="flex gap-3 h-full w-full">
+      {/* Y-axis labels */}
+      <div className="flex flex-col justify-between pb-6 shrink-0 w-10 text-right">
+        {yTicks.map((v) => (
+          <span key={v} className="text-[10px] text-muted-foreground leading-none">{formatYAxis(v)}</span>
+        ))}
+      </div>
+
+      {/* Chart area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Bars + gridlines */}
+        <div className="flex-1 relative">
+          {/* Horizontal gridlines */}
+          {yTicks.map((v, i) => (
             <div
-              className="w-full rounded-t-sm bg-primary/70 group-hover:bg-primary transition-colors"
-              style={{ height: `${pct}%` }}
+              key={v}
+              className="absolute left-0 right-0 border-t border-border/50"
+              style={{ top: `${(i / Y_TICKS) * 100}%` }}
             />
+          ))}
+
+          {/* Bars */}
+          <div className="absolute inset-0 flex items-end gap-0.5 px-0.5">
+            {data.map((d, idx) => {
+              const pct = Math.max((d.revenue / max) * 100, d.revenue > 0 ? 1 : 0);
+              const label = formatDateLabel(d.date);
+              return (
+                <div
+                  key={d.date}
+                  className="flex-1 flex flex-col justify-end h-full relative group cursor-pointer"
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const parent = e.currentTarget.closest('.relative')?.getBoundingClientRect();
+                    setTooltip({
+                      index: idx,
+                      x: rect.left - (parent?.left ?? 0) + rect.width / 2,
+                      y: rect.top - (parent?.top ?? 0),
+                    });
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
+                >
+                  <div
+                    className="w-full rounded-t-sm bg-primary/60 group-hover:bg-primary transition-all duration-150"
+                    style={{ height: `${pct}%`, minHeight: d.revenue > 0 ? 2 : 0 }}
+                    title={`${label}: ${formatRSD(d.revenue)} (${d.ordersCount} nar.)`}
+                  />
+                  {tooltip?.index === idx && (
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none whitespace-nowrap">
+                      <div className="bg-foreground text-background text-xs rounded-lg px-2.5 py-1.5 shadow-lg">
+                        <p className="font-semibold">{formatRSD(d.revenue)}</p>
+                        <p className="text-background/70">{label} · {d.ordersCount} nar.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+
+        {/* X-axis labels */}
+        <div className="h-6 flex items-start pt-1 gap-0.5 px-0.5">
+          {data.map((d, idx) => (
+            <div key={d.date} className="flex-1 text-center overflow-hidden">
+              {idx % showEvery === 0 && (
+                <span className="text-[9px] text-muted-foreground leading-none">{formatDateLabel(d.date)}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -276,7 +364,7 @@ export default function AnalitikaPage() {
           />
           <KpiCard
             label="Novi korisnici"
-            value={newUsers ? String(newUsers.value) : '—'}
+            value={summary ? String(newUsers?.value ?? 0) : '—'}
             change={newUsers?.change}
             icon={Users}
             loading={loading}
@@ -289,13 +377,13 @@ export default function AnalitikaPage() {
           <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5 flex flex-col gap-4">
             <h3 className="text-sm font-semibold text-foreground">Prihod po danima</h3>
             {loading ? (
-              <div className="h-52 bg-muted rounded-lg animate-pulse" />
+              <div className="h-64 bg-muted rounded-lg animate-pulse" />
             ) : data?.revenueByDay && data.revenueByDay.length > 0 ? (
-              <div className="h-52 px-1 pt-2">
+              <div className="h-64">
                 <RevenueBarChart data={data.revenueByDay} />
               </div>
             ) : (
-              <div className="h-52 rounded-lg bg-muted/40 border border-dashed border-border flex items-center justify-center">
+              <div className="h-64 rounded-lg bg-muted/40 border border-dashed border-border flex items-center justify-center">
                 <p className="text-xs text-muted-foreground">Nema podataka za izabrani period</p>
               </div>
             )}
@@ -361,9 +449,9 @@ export default function AnalitikaPage() {
                   <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{p.category ?? '—'} · {p.soldCount} kom</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{p.categoryName ?? '—'} · {p.totalSold} kom</p>
                     </div>
-                    <p className="text-sm font-semibold text-foreground shrink-0">{formatRSD(p.revenue)}</p>
+                    <p className="text-sm font-semibold text-foreground shrink-0">{formatRSD(p.totalRevenue)}</p>
                   </div>
                 ))
               ) : (
@@ -393,9 +481,9 @@ export default function AnalitikaPage() {
                   data.topProducts.map((p) => (
                     <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground truncate max-w-[160px]">{p.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{p.category ?? '—'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{p.soldCount}</td>
-                      <td className="px-4 py-3 text-foreground font-medium">{formatRSD(p.revenue)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{p.categoryName ?? '—'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{p.totalSold}</td>
+                      <td className="px-4 py-3 text-foreground font-medium">{formatRSD(p.totalRevenue)}</td>
                     </tr>
                   ))
                 ) : (

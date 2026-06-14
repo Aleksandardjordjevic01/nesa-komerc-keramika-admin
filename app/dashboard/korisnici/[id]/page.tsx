@@ -245,7 +245,7 @@ export default function KorisnikDetailPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         {/* Back */}
         <Link href="/dashboard/korisnici" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" />
@@ -253,31 +253,35 @@ export default function KorisnikDetailPage() {
         </Link>
 
         {/* Profile header */}
-        <div className="bg-card border border-border rounded-xl p-6 card-shadow flex flex-wrap gap-6 items-start">
-          {user.avatarUrl ? (
-            <img
-              src={`${(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1').replace('/api/v1', '')}${user.avatarUrl}`}
-              alt={user.displayName}
-              className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary flex-shrink-0">
-              {user.displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold text-foreground">{user.displayName}</h1>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[user.status] ?? 'bg-muted text-muted-foreground'}`}>
-                {STATUS_LABELS[user.status] ?? user.status}
-              </span>
-              <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                {ROLE_LABELS[user.role] ?? user.role}
-              </span>
+        <div className="bg-card border border-border rounded-xl p-4 sm:p-6 card-shadow space-y-4">
+          <div className="flex items-start gap-4">
+            {/* Avatar */}
+            {user.avatarUrl ? (
+              <img
+                src={`${(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1').replace('/api/v1', '')}${user.avatarUrl}`}
+                alt={user.displayName}
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary flex-shrink-0">
+                {user.displayName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            {/* Name + badges */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base sm:text-lg font-semibold text-foreground">{user.displayName}</h1>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[user.status] ?? 'bg-muted text-muted-foreground'}`}>
+                  {STATUS_LABELS[user.status] ?? user.status}
+                </span>
+                <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                  {ROLE_LABELS[user.role] ?? user.role}
+                </span>
+              </div>
             </div>
           </div>
-          {/* Status actions */}
-          <div className="flex flex-wrap gap-2">
+          {/* Status actions — below avatar row on all sizes */}
+          <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
             {user.status === 'INACTIVE' && (
               <button
                 onClick={() => setConfirm({ status: 'ACTIVE', title: 'Da li sigurno želiš da', subtitle: 'aktiviraš korisnika?', description: `Korisnik ${user.displayName} ponovo će dobiti pun pristup nalogu.`, confirmLabel: 'Da, aktiviraj', destructive: false })}
@@ -299,7 +303,7 @@ export default function KorisnikDetailPage() {
           {/* Left: profile info */}
           <div className="lg:col-span-2 space-y-6">
             {/* Contact info */}
-            <div className="bg-card border border-border rounded-xl p-5 card-shadow space-y-4">
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 card-shadow space-y-4">
               <h2 className="text-sm font-semibold text-foreground">Informacije o nalogu</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <EditableField label="Ime" value={user.firstName ?? ''} onSave={(v) => handleSaveField('firstName', v)} />
@@ -318,24 +322,32 @@ export default function KorisnikDetailPage() {
             </div>
 
             {/* Recent orders */}
-            <div className="bg-card border border-border rounded-xl p-5 card-shadow">
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 card-shadow">
               <h2 className="text-sm font-semibold text-foreground mb-4">Porudžbine</h2>
               {orders.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nema porudžbina.</p>
               ) : (
                 <ul className="divide-y divide-border">
                   {orders.map((o) => (
-                    <li key={o.id} className="py-3 flex items-center justify-between gap-4">
+                    <li key={o.id} className="py-3 flex items-start sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
                         <ShoppingBag className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-sm font-medium text-foreground">{o.orderNumber}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium text-foreground">{o.orderNumber}</span>
+                          <div className="flex items-center gap-2 mt-0.5 sm:hidden">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              {ORDER_STATUS_LABELS[o.status] ?? o.status}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{formatDate(o.createdAt)}</span>
+                          </div>
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <span className="text-sm font-medium text-foreground">{o.total.toLocaleString('sr-RS')} RSD</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        <span className="hidden sm:inline-flex text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                           {ORDER_STATUS_LABELS[o.status] ?? o.status}
                         </span>
-                        <span className="text-xs text-muted-foreground">{formatDate(o.createdAt)}</span>
+                        <span className="hidden sm:inline text-xs text-muted-foreground">{formatDate(o.createdAt)}</span>
                       </div>
                     </li>
                   ))}
@@ -347,7 +359,7 @@ export default function KorisnikDetailPage() {
           {/* Right: stats + metadata */}
           <div className="space-y-6">
             {/* Stats */}
-            <div className="bg-card border border-border rounded-xl p-5 card-shadow space-y-3">
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 card-shadow space-y-3">
               <h2 className="text-sm font-semibold text-foreground">Statistike</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-muted/40 rounded-lg px-3 py-3">
@@ -368,7 +380,7 @@ export default function KorisnikDetailPage() {
             </div>
 
             {/* Dates */}
-            <div className="bg-card border border-border rounded-xl p-5 card-shadow space-y-3">
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 card-shadow space-y-3">
               <h2 className="text-sm font-semibold text-foreground">Datumi</h2>
               <div className="space-y-2.5">
                 <div className="flex items-center gap-2 text-sm">
@@ -380,7 +392,7 @@ export default function KorisnikDetailPage() {
             </div>
 
             {/* Role management */}
-            <div className="bg-card border border-border rounded-xl p-5 card-shadow space-y-3">
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 card-shadow space-y-3">
               <h2 className="text-sm font-semibold text-foreground">Uloga</h2>
               <div className="space-y-2">
                 {(['USER', 'ADMIN'] as UserRole[]).map((role) => (
@@ -403,7 +415,7 @@ export default function KorisnikDetailPage() {
             </div>
 
             {/* Password management */}
-            <div className="bg-card border border-border rounded-xl p-5 card-shadow space-y-4">
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 card-shadow space-y-4">
               <h2 className="text-sm font-semibold text-foreground">Lozinka</h2>
 
               {/* Send reset email */}

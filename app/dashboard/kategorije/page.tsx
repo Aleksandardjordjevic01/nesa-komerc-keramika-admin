@@ -76,6 +76,22 @@ function filterTreeByStatus(nodes: AdminCategoryNode[], isActive: boolean): Admi
   return result;
 }
 
+function filterTreeBySearch(nodes: AdminCategoryNode[], query: string): AdminCategoryNode[] {
+  const q = query.toLowerCase();
+  const result: AdminCategoryNode[] = [];
+  for (const node of nodes) {
+    const filteredChildren = filterTreeBySearch(node.children, query);
+    if (
+      node.name.toLowerCase().includes(q) ||
+      node.slug.toLowerCase().includes(q) ||
+      filteredChildren.length > 0
+    ) {
+      result.push({ ...node, children: filteredChildren });
+    }
+  }
+  return result;
+}
+
 // ── Confirm Modal ─────────────────────────────────────────────────────────────
 
 function ConfirmModal({
@@ -430,7 +446,7 @@ function CategoryRow({
   onDelete: (node: AdminCategoryNode) => void;
   dragState: DragState;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1);
+  const [expanded, setExpanded] = useState(false);
   const isDragging = dragState.draggedId === node.id;
   const isDraggedOver = dragState.dragOverId === node.id;
 
@@ -578,7 +594,7 @@ function CategoryCardItem({
   onToggleStatus: (node: AdminCategoryNode) => void;
   onDelete: (node: AdminCategoryNode) => void;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <>
@@ -713,12 +729,8 @@ export default function KategorijeAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const query = {
-        search: debouncedSearch || undefined,
-        status: statusFilter !== 'all' ? (statusFilter as 'active' | 'inactive') : undefined,
-      };
       const [treeData, flatData] = await Promise.all([
-        getAdminCategoryTree(query),
+        getAdminCategoryTree(),
         getAdminCategoryFlat(),
       ]);
       setTree(treeData);
@@ -728,7 +740,7 @@ export default function KategorijeAdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, statusFilter]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -852,9 +864,10 @@ export default function KategorijeAdminPage() {
     onDragEnd: handleDragEnd,
   };
 
+  const searchFiltered = debouncedSearch ? filterTreeBySearch(tree, debouncedSearch) : tree;
   const displayTree = statusFilter === 'all'
-    ? tree
-    : filterTreeByStatus(tree, statusFilter === 'active');
+    ? searchFiltered
+    : filterTreeByStatus(searchFiltered, statusFilter === 'active');
 
   const totalCount = flattenTree(tree).length;
   const activeCount = flattenTree(tree).filter((n) => n.isActive).length;

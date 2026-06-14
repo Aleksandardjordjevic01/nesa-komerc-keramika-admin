@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, Search, ChevronLeft, ChevronRight, Eye, Pencil, Loader2, X, CreditCard } from 'lucide-react';
+import { ShoppingCart, Search, ChevronLeft, ChevronRight, Eye, Pencil, Loader2, X, CreditCard, Plus } from 'lucide-react';
 import { DashboardLayout } from '../../../components/layout/dashboard-layout';
 import { SelectDropdown } from '../../../components/shared/select-dropdown';
 import { getOrders, type Order, type OrderStatus, type PaymentStatus, type OrdersParams } from '../../../lib/api/client';
@@ -54,7 +54,11 @@ function formatDate(iso: string) {
 
 function formatCustomerName(order: Order) {
   const name = `${order.user?.firstName ?? ''} ${order.user?.lastName ?? ''}`.trim();
-  return name || order.user?.email || '—';
+  return name || order.guestName || '—';
+}
+
+function formatCustomerEmail(order: Order) {
+  return order.user?.email ?? order.guestEmail ?? null;
 }
 
 
@@ -94,10 +98,10 @@ export default function NarudzbinePage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
 
         {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-primary" />
@@ -105,10 +109,17 @@ export default function NarudzbinePage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">{meta.total} narudžbina ukupno</p>
           </div>
+          <button
+            onClick={() => router.push('/dashboard/narudzbine/nova')}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Nova narudžbina
+          </button>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
@@ -123,150 +134,209 @@ export default function NarudzbinePage() {
               </button>
             )}
           </div>
-          <SelectDropdown
-            value={statusFilter}
-            onChange={(v) => { setStatusFilter(v); setPage(1); }}
-            options={[{ value: '', label: 'Svi statusi' }, ...Object.entries(ORDER_STATUS_LABELS).map(([v, l]) => ({ value: v, label: l }))]}
-            className="w-44"
-          />
-          <SelectDropdown
-            value={paymentFilter}
-            onChange={(v) => { setPaymentFilter(v); setPage(1); }}
-            options={[{ value: '', label: 'Sve uplate' }, ...Object.entries(PAYMENT_STATUS_LABELS).map(([v, l]) => ({ value: v, label: l }))]}
-            className="w-40"
-          />
+          <div className="flex gap-2">
+            <SelectDropdown
+              value={statusFilter}
+              onChange={(v) => { setStatusFilter(v); setPage(1); }}
+              options={[{ value: '', label: 'Svi statusi' }, ...Object.entries(ORDER_STATUS_LABELS).map(([v, l]) => ({ value: v, label: l }))]}
+              className="flex-1 sm:w-44"
+            />
+            <SelectDropdown
+              value={paymentFilter}
+              onChange={(v) => { setPaymentFilter(v); setPage(1); }}
+              options={[{ value: '', label: 'Sve uplate' }, ...Object.entries(PAYMENT_STATUS_LABELS).map(([v, l]) => ({ value: v, label: l }))]}
+              className="flex-1 sm:w-40"
+            />
+          </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        {/* Content */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-destructive text-sm">{error}</div>
+        ) : orders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card border border-border rounded-xl">
+            <ShoppingCart className="w-10 h-10 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">Nema narudžbina.</p>
+          </div>
+        ) : (
+          <>
+            {/* ── Mobile cards (< md) ── */}
+            <div className="md:hidden space-y-3">
+              {orders.map((o) => (
+                <div
+                  key={o.id}
+                  className="bg-card border border-border rounded-xl p-4 space-y-3 cursor-pointer active:bg-muted/30 transition-colors"
+                  onClick={() => router.push(`/dashboard/narudzbine/${o.id}`)}
+                >
+                  {/* Top row: order number + actions */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-mono text-xs font-semibold text-foreground">{o.orderNumber}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{formatDate(o.createdAt)}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => router.push(`/dashboard/narudzbine/${o.id}`)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => router.push(`/dashboard/narudzbine/${o.id}?edit=true`)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Customer + address */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{formatCustomerName(o)}</p>
+                      {formatCustomerEmail(o) && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{formatCustomerEmail(o)}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs text-foreground">{o.shippingCity || '—'}</p>
+                      {o.shippingAddress && (
+                        <p className="text-xs text-muted-foreground mt-0.5 max-w-[140px] text-right">{o.shippingAddress}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom row: amount + badges */}
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/50">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{formatPrice(o.totalAmount)}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <CreditCard className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium ${ORDER_STATUS_COLORS[o.status]}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ORDER_STATUS_DOT[o.status]}`} />
+                        {ORDER_STATUS_LABELS[o.status]}
+                      </span>
+                      <span className={`inline-flex whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[o.paymentStatus]}`}>
+                        {PAYMENT_STATUS_LABELS[o.paymentStatus]}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : error ? (
-            <div className="text-center py-12 text-destructive text-sm">{error}</div>
-          ) : orders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <ShoppingCart className="w-10 h-10 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">Nema narudžbina.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[15%]">Narudžbina</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[20%]">Kupac</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[15%]">Adresa</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[13%]">Iznos</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[14%]">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[13%]">Uplata</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[10%]">Akcije</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {orders.map((o) => (
-                    <tr key={o.id} className="hover:bg-muted/20 transition-colors group">
 
-                      {/* Narudžbina */}
-                      <td className="px-4 py-3.5">
-                        <div className="font-mono text-xs font-semibold text-foreground">{o.orderNumber}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{formatDate(o.createdAt)}</div>
-                      </td>
-
-                      {/* Kupac */}
-                      <td className="px-4 py-3.5">
-                        <div className="text-sm font-medium text-foreground truncate max-w-[200px]">{formatCustomerName(o)}</div>
-                        {o.user?.email && (
-                          <div className="text-xs text-muted-foreground truncate max-w-[200px] mt-0.5">{o.user.email}</div>
-                        )}
-                      </td>
-
-                      {/* Adresa */}
-                      <td className="px-4 py-3.5">
-                        <div className="text-sm text-foreground truncate max-w-[160px]">{o.shippingCity || '—'}</div>
-                        {o.shippingAddress && (
-                          <div className="text-xs text-muted-foreground truncate max-w-[160px] mt-0.5">{o.shippingAddress}</div>
-                        )}
-                      </td>
-
-                      {/* Iznos */}
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="text-sm font-semibold text-foreground whitespace-nowrap">{formatPrice(o.totalAmount)}</div>
-                        <div className="flex items-center justify-end gap-1 mt-0.5">
-                          <CreditCard className="w-3 h-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">{PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}</span>
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-4 py-3.5">
-                        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${ORDER_STATUS_COLORS[o.status]}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ORDER_STATUS_DOT[o.status]}`} />
-                          {ORDER_STATUS_LABELS[o.status]}
-                        </span>
-                      </td>
-
-                      {/* Uplata */}
-                      <td className="px-4 py-3.5">
-                        <span className={`inline-flex whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[o.paymentStatus]}`}>
-                          {PAYMENT_STATUS_LABELS[o.paymentStatus]}
-                        </span>
-                      </td>
-
-                      {/* Akcije */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => router.push(`/dashboard/narudzbine/${o.id}`)}
-                            title="Pregled"
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => router.push(`/dashboard/narudzbine/${o.id}?edit=true`)}
-                            title="Izmeni"
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+            {/* ── Desktop table (≥ md) ── */}
+            <div className="hidden md:block bg-card border border-border rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[15%]">Narudžbina</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[20%]">Kupac</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[15%]">Adresa</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[13%]">Iznos</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[14%]">Status</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[13%]">Uplata</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground tracking-wider uppercase w-[10%]">Akcije</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {!loading && meta.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10">
-              <span className="text-xs text-muted-foreground">
-                Strana {meta.page} od {meta.totalPages} · {meta.total} narudžbina
-              </span>
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={meta.page <= 1}
-                  className="p-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-30 transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-                  disabled={meta.page >= meta.totalPages}
-                  className="p-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-30 transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {orders.map((o) => (
+                      <tr key={o.id} className="hover:bg-muted/20 transition-colors group">
+                        <td className="px-4 py-3.5">
+                          <div className="font-mono text-xs font-semibold text-foreground">{o.orderNumber}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{formatDate(o.createdAt)}</div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="text-sm font-medium text-foreground truncate max-w-[200px]">{formatCustomerName(o)}</div>
+                          {formatCustomerEmail(o) && (
+                            <div className="text-xs text-muted-foreground truncate max-w-[200px] mt-0.5">{formatCustomerEmail(o)}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="text-sm text-foreground truncate max-w-[160px]">{o.shippingCity || '—'}</div>
+                          {o.shippingAddress && (
+                            <div className="text-xs text-muted-foreground truncate max-w-[160px] mt-0.5">{o.shippingAddress}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <div className="text-sm font-semibold text-foreground whitespace-nowrap">{formatPrice(o.totalAmount)}</div>
+                          <div className="flex items-center justify-end gap-1 mt-0.5">
+                            <CreditCard className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">{PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${ORDER_STATUS_COLORS[o.status]}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ORDER_STATUS_DOT[o.status]}`} />
+                            {ORDER_STATUS_LABELS[o.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[o.paymentStatus]}`}>
+                            {PAYMENT_STATUS_LABELS[o.paymentStatus]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => router.push(`/dashboard/narudzbine/${o.id}`)}
+                              title="Pregled"
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => router.push(`/dashboard/narudzbine/${o.id}?edit=true`)}
+                              title="Izmeni"
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          )}
-        </div>
-      </div>
+          </>
+        )}
 
+        {/* Pagination */}
+        {!loading && meta.totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 bg-card border border-border rounded-xl">
+            <span className="text-xs text-muted-foreground">
+              Strana {meta.page} od {meta.totalPages} · {meta.total} narudžbina
+            </span>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={meta.page <= 1}
+                className="p-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-30 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
+                disabled={meta.page >= meta.totalPages}
+                className="p-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }
