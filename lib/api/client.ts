@@ -391,6 +391,12 @@ export async function undoBrandPriceAdjustment(
   return request(`/brands/${id}/price-adjustment/undo`, { method: 'POST' });
 }
 
+export async function resetBrandPrices(
+  id: string,
+): Promise<{ updatedCount: number }> {
+  return request(`/brands/${id}/reset-prices`, { method: 'POST' });
+}
+
 export type VariantItem = {
   name: string;
   type?: 'color' | 'icon' | 'image';
@@ -407,6 +413,7 @@ export interface Product {
   description: string | null;
   price: number;
   salePrice: number | null;
+  clearancePrice: number | null;
   discountPercent: number | null;
   saleEndsAt: string | null;
   sku: string | null;
@@ -1668,13 +1675,28 @@ export async function getAdminSettingsGroup(group: string): Promise<PlatformSett
   return request(`/settings/${group}`);
 }
 
+export async function getNotificationsSettings(): Promise<{ contactEmail: string }> {
+  const all = await getAdminSettings();
+  const items: PlatformSettingItem[] = (all as Record<string, PlatformSettingItem[]>).notifications ?? [];
+  const found = items.find((i) => i.key === 'notifications.contactEmail' || i.key === 'contactEmail');
+  return { contactEmail: String(found?.value ?? '') };
+}
+
+export async function updateNotificationsSettings(contactEmail: string): Promise<void> {
+  await request('/settings/notifications', {
+    method: 'PUT',
+    body: safeJsonStringify({ contactEmail }),
+  });
+}
+
 export async function updateAdminSettingsGroup(
   group: string,
   settings: { key: string; value: string }[],
 ): Promise<PlatformSettingItem[]> {
+  const payload = Object.fromEntries(settings.map((s) => [s.key, s.value]));
   return request<PlatformSettingItem[]>(`/settings/${group}`, {
     method: 'PUT',
-    body: safeJsonStringify({ settings }),
+    body: safeJsonStringify(payload),
   });
 }
 

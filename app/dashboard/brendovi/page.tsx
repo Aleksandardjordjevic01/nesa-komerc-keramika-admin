@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DashboardLayout } from '../../../components/layout/dashboard-layout';
 import {
-  Plus, Pencil, Trash2, Loader2, X, Globe, Search, Upload, Check, Percent, Undo2,
+  Plus, Pencil, Trash2, Loader2, X, Globe, Search, Upload, Check, Percent, RotateCcw,
 } from 'lucide-react';
 import {
   getBrands, createBrand, updateBrand, deleteBrand,
-  applyBrandPriceAdjustment, undoBrandPriceAdjustment,
+  applyBrandPriceAdjustment, resetBrandPrices,
   type Brand,
 } from '../../../lib/api/client';
 import { uploadBrandLogo, deleteUpload } from '../../../lib/api/upload';
@@ -61,12 +61,12 @@ function PriceAdjustmentModal({
 }) {
   const [percent, setPercent] = useState('');
   const [applying, setApplying] = useState(false);
-  const [undoing, setUndoing] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState('');
   const [confirmStep, setConfirmStep] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const current = brand.priceAdjustmentPercent;
-  const previous = brand.previousPriceAdjustmentPercent;
   const parsedPercent = parseFloat(percent);
   const validPercent = !isNaN(parsedPercent) && percent.trim() !== '';
 
@@ -86,25 +86,26 @@ function PriceAdjustmentModal({
     }
   }
 
-  async function handleUndo() {
-    setUndoing(true); setError('');
+  async function handleReset() {
+    setResetting(true); setError('');
     try {
-      const result = await undoBrandPriceAdjustment(brand.id);
-      onSuccess(`Uspešno vraćeno ${result.updatedCount} proizvoda na prethodne cene`);
+      const result = await resetBrandPrices(brand.id);
+      onSuccess(`Uspešno vraćeno ${result.updatedCount} proizvoda na originalne cene`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Greška pri undo operaciji');
+      setError(e instanceof Error ? e.message : 'Greška pri vraćanju originalnih cena');
+      setConfirmReset(false);
     } finally {
-      setUndoing(false);
+      setResetting(false);
     }
   }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { if (confirmStep) setConfirmStep(false); else onClose(); }
+      if (e.key === 'Escape') { if (confirmStep) setConfirmStep(false); else if (confirmReset) setConfirmReset(false); else onClose(); }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, confirmStep]);
+  }, [onClose, confirmStep, confirmReset]);
 
   const sign = parsedPercent > 0 ? '+' : '';
 
@@ -186,15 +187,39 @@ function PriceAdjustmentModal({
                   {applying ? 'Primena...' : 'Primeni korekciju'}
                 </button>
 
-                {previous !== null && previous !== undefined && (
-                  <button
-                    onClick={handleUndo}
-                    disabled={undoing}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm border border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-50 transition-colors"
-                  >
-                    {undoing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
-                    {undoing ? 'Vraćanje...' : 'Undo poslednje korekcije'}
-                  </button>
+                {current !== null && current !== undefined && (
+                  confirmReset ? (
+                    <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 space-y-3">
+                      <p className="text-sm text-red-800">
+                        Sigurno želite da vratite sve cene brenda <strong>{brand.name}</strong> na originalne vrednosti? Korekcija od <strong>{current > 0 ? '+' : ''}{current}%</strong> će biti uklonjena.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setConfirmReset(false)}
+                          className="flex-1 text-sm py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+                        >
+                          Odustani
+                        </button>
+                        <button
+                          onClick={handleReset}
+                          disabled={resetting}
+                          className="flex-1 flex items-center justify-center gap-2 text-sm py-2 bg-destructive text-white rounded-lg hover:bg-destructive/90 disabled:opacity-60 transition-colors font-medium"
+                        >
+                          {resetting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                          {resetting ? 'Vraćanje...' : 'Da, vrati originalne'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmReset(true)}
+                      disabled={resetting}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm border border-destructive/40 rounded-xl text-destructive hover:bg-destructive/5 hover:border-destructive disabled:opacity-50 transition-colors"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Vrati originalne cene
+                    </button>
+                  )
                 )}
               </div>
             </>

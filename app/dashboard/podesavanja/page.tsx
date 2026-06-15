@@ -8,6 +8,8 @@ import {
   getAdminSettings,
   updateAdminSettingsGroup,
   getAdminSettingsGroup,
+  getNotificationsSettings,
+  updateNotificationsSettings,
   getSmtpSettings,
   updateSmtpSettings,
   testSmtpConnection,
@@ -924,11 +926,8 @@ function NotificationsSection() {
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    getAdminSettingsGroup('notifications')
-      .then((items: PlatformSettingItem[]) => {
-        const found = items.find((i) => i.key === 'notifications.contactEmail' || i.key === 'contactEmail');
-        setContactEmail(String(found?.value ?? ''));
-      })
+    getNotificationsSettings()
+      .then((data) => setContactEmail(data.contactEmail))
       .catch(() => setErr('Nije moguće učitati podešavanja obaveštenja.'))
       .finally(() => setLoading(false));
   }, []);
@@ -937,9 +936,7 @@ function NotificationsSection() {
     setSaving(true);
     setErr('');
     try {
-      await updateAdminSettingsGroup('notifications', [
-        { key: 'contactEmail', value: contactEmail },
-      ]);
+      await updateNotificationsSettings(contactEmail);
       setSaved(true);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setSaved(false), 3000);

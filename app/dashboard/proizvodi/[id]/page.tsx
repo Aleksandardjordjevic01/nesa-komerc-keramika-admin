@@ -417,6 +417,7 @@ export default function ProductEditPage() {
     sku: '',
     price: '',
     salePrice: '',
+    clearancePrice: '',
     saleEndsAt: '',
     stock: '',
 
@@ -455,6 +456,7 @@ export default function ProductEditPage() {
         sku: p.sku ?? '',
         price: String(p.price ?? ''),
         salePrice: p.salePrice != null ? String(p.salePrice) : '',
+        clearancePrice: p.clearancePrice != null ? String(p.clearancePrice) : '',
         saleEndsAt: p.saleEndsAt ? p.saleEndsAt.slice(0, 10) : '',
         stock: String(p.stock ?? 0),
         categoryId: p.categoryId ?? '',
@@ -516,6 +518,7 @@ export default function ProductEditPage() {
         sku: form.sku || null,
         price: parseFloat(form.price) || 0,
         salePrice: form.salePrice ? parseFloat(form.salePrice) : null,
+        clearancePrice: form.clearancePrice ? parseFloat(form.clearancePrice) : null,
         saleEndsAt: form.saleEndsAt ? new Date(form.saleEndsAt).toISOString() : null,
         stock: parseInt(form.stock, 10) || 0,
         categoryId: form.categoryId,
@@ -726,6 +729,9 @@ export default function ProductEditPage() {
                   <input type="date" value={form.saleEndsAt} onChange={(e) => setField('saleEndsAt', e.target.value)} className={INPUT_SM} />
                 </Field>
               </div>
+              <Field label="Cena rasprodaje (RSD)">
+                <input type="number" value={form.clearancePrice} onChange={(e) => setField('clearancePrice', e.target.value)} className={INPUT_SM} placeholder="Prazno = nema rasprodaje" />
+              </Field>
             </Section>
 
             {/* Category & Brand */}
