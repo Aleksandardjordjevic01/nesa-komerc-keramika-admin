@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Admin — Moje Stvari',
+  title: 'Admin Panel - Nesa Komerc Keramika',
   icons: {
     icon: [
       { url: '/images/favicon.png', type: 'image/png', sizes: '512x512' },
