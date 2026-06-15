@@ -258,7 +258,7 @@ function CategoryModal({
           {/* Icon upload */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Ikonica (SVG) <span className="text-muted-foreground text-xs font-normal">(opciono)</span>
+              Ikonica (SVG/PNG) <span className="text-muted-foreground text-xs font-normal">(opciono)</span>
             </label>
             <div className="flex items-center gap-3">
               {icon ? (
@@ -284,12 +284,12 @@ function CategoryModal({
                   {iconUploading ? (
                     <><Loader2 className="w-4 h-4 animate-spin text-primary" /><span className="text-muted-foreground">Uploadovanje...</span></>
                   ) : (
-                    <span className="text-muted-foreground">{icon ? 'Zameni SVG ikonicu' : 'Izaberi SVG fajl...'}</span>
+                    <span className="text-muted-foreground">{icon ? 'Zameni ikonicu' : 'Izaberi SVG ili PNG...'}</span>
                   )}
                 </div>
                 <input
                   type="file"
-                  accept="image/svg+xml"
+                  accept="image/svg+xml,image/png"
                   className="hidden"
                   disabled={iconUploading}
                   onChange={async (e) => {
