@@ -28,6 +28,8 @@ export default function DostavaPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ShippingMethod | null>(null);
   const [form, setForm] = useState<ShippingMethodPayload>(EMPTY_FORM);
+  const [hasFreeShipping, setHasFreeShipping] = useState(false);
+  const [freeAbove, setFreeAbove] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -44,18 +46,27 @@ export default function DostavaPage() {
 
   useEffect(() => { load(); }, []);
 
-  function openNew() { setEditing(null); setForm(EMPTY_FORM); setShowForm(true); }
+  function openNew() {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setHasFreeShipping(false);
+    setFreeAbove('');
+    setShowForm(true);
+  }
   function openEdit(m: ShippingMethod) {
     setEditing(m);
     setForm({ type: m.type, name: m.name, description: m.description, price: m.price, freeAbove: m.freeAbove, isActive: m.isActive, sortOrder: m.sortOrder });
+    setHasFreeShipping(m.freeAbove !== null && m.freeAbove !== undefined);
+    setFreeAbove(m.freeAbove != null ? String(m.freeAbove) : '');
     setShowForm(true);
   }
 
   async function handleSave() {
     setSaving(true);
     try {
-      if (editing) await updateShippingMethod(editing.id, form);
-      else await createShippingMethod({ ...form, sortOrder: methods.length });
+      const payload = { ...form, freeAbove: hasFreeShipping ? Number(freeAbove) : null };
+      if (editing) await updateShippingMethod(editing.id, payload);
+      else await createShippingMethod({ ...payload, sortOrder: methods.length });
       setShowForm(false); load();
     } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Greška'); }
     finally { setSaving(false); }
@@ -200,18 +211,25 @@ export default function DostavaPage() {
                     <input value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value || null })} placeholder="npr. Dostava 1-3 radna dana"
                       className="w-full px-4 py-3 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Cena (RSD)</p>
-                      <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} min={0}
-                        className="w-full px-4 py-3 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                    </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Cena (RSD)</p>
+                    <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} min={0}
+                      className="w-full px-4 py-3 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                  </div>
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-sm font-medium">Besplatna poštarina</span>
+                    <button type="button" onClick={() => { setHasFreeShipping(!hasFreeShipping); if (hasFreeShipping) setFreeAbove(''); }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${hasFreeShipping ? 'bg-primary' : 'bg-border'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${hasFreeShipping ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  {hasFreeShipping && (
                     <div>
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Besplatno iznad (RSD)</p>
-                      <input type="number" value={form.freeAbove ?? ''} onChange={(e) => setForm({ ...form, freeAbove: e.target.value ? Number(e.target.value) : null })} min={0} placeholder="—"
+                      <input type="number" value={freeAbove} onChange={(e) => setFreeAbove(e.target.value)} min={0} placeholder="npr. 5000"
                         className="w-full px-4 py-3 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/40" />
                     </div>
-                  </div>
+                  )}
                 </>
               )}
               <div className="flex items-center justify-between px-1">

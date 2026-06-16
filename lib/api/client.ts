@@ -1052,7 +1052,7 @@ export async function createShippingMethod(payload: ShippingMethodPayload): Prom
 }
 
 export async function updateShippingMethod(id: string, payload: Partial<ShippingMethodPayload>): Promise<ShippingMethod> {
-  const body = Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== null && v !== undefined));
+  const body = Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined));
   return request<ShippingMethod>(`/shipping-methods/${id}`, { method: 'PATCH', body: safeJsonStringify(body) });
 }
 
