@@ -29,10 +29,12 @@ import {
   runApiImport,
   getMinottiB2BCatalogStructure,
   runMinottiB2BImport,
+  syncMinottiB2BStock,
   type SupplierConfig,
   type ImportResult,
   type MinottiCatalogStructure,
   type MinottiB2BImportOptions,
+  type StockSyncResult,
 } from '../../../lib/api/client';
 
 // ── Supplier modal ────────────────────────────────────────────────────────────
@@ -481,6 +483,9 @@ function SupplierCard({
   const [pageSize, setPageSize] = useState(100);
   const [includeDetails, setIncludeDetails] = useState(true);
   const [replaceImages, setReplaceImages] = useState(false);
+  const [stockSyncing, setStockSyncing] = useState(false);
+  const [stockSyncResult, setStockSyncResult] = useState<StockSyncResult | null>(null);
+  const [stockSyncErr, setStockSyncErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const minottiB2B = isMinottiB2B(supplier);
   const hasMinottiSelection = selectedBrands.length > 0 || selectedCategories.length > 0;
@@ -543,6 +548,16 @@ function SupplierCard({
     } catch (e) {
       setRunErr(e instanceof Error ? e.message : 'Greška pri uvozu.');
     } finally { setRunning(false); }
+  }
+
+  async function handleStockSync() {
+    setStockSyncing(true); setStockSyncResult(null); setStockSyncErr('');
+    try {
+      const r = await syncMinottiB2BStock();
+      setStockSyncResult(r);
+    } catch (e) {
+      setStockSyncErr(e instanceof Error ? e.message : 'Greška pri sinhronizaciji zaliha.');
+    } finally { setStockSyncing(false); }
   }
 
   async function handleDelete() {
@@ -648,15 +663,26 @@ function SupplierCard({
                 Izaberite brendove, kategorije ili podkategorije koje želite da povučete.
               </p>
             </div>
-            <button
-              onClick={loadFilters}
-              disabled={filtersLoading}
-              title="Osveži dostupne opcije"
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 shrink-0"
-            >
-              {filtersLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              {filtersLoading ? 'Učitavanje...' : 'Sync'}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleStockSync}
+                disabled={stockSyncing || !supplier.isActive}
+                title="Sinhronizuj zalihe sa Minotti B2B"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                {stockSyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                {stockSyncing ? 'Sinhronizacija...' : 'Sync Zalihe'}
+              </button>
+              <button
+                onClick={loadFilters}
+                disabled={filtersLoading}
+                title="Osveži dostupne opcije"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                {filtersLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                {filtersLoading ? 'Učitavanje...' : 'Sync'}
+              </button>
+            </div>
           </div>
 
           {/* API key warning */}
@@ -747,6 +773,60 @@ function SupplierCard({
               <p className="text-xs text-amber-600">Izaberite bar jedan brend ili kategoriju da uvoz ne povuče sve.</p>
             )}
           </div>
+
+          {stockSyncErr && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              <span className="text-xs text-red-700 flex-1">{stockSyncErr}</span>
+              <button onClick={() => setStockSyncErr('')} className="text-red-400 hover:text-red-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {stockSyncResult && (
+            <div className="border border-border rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
+                <span className="text-xs font-semibold text-foreground flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Rezultat sinhronizacije zaliha
+                </span>
+                <button onClick={() => setStockSyncResult(null)} className="text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3 grid grid-cols-3 gap-2">
+                <div className="bg-muted/30 border border-border rounded-lg p-2.5 text-center">
+                  <p className="text-xl font-bold text-foreground">{stockSyncResult.checked}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Provereno</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-center">
+                  <p className="text-xl font-bold text-blue-700">{stockSyncResult.updated}</p>
+                  <p className="text-xs text-blue-600 mt-0.5">Ažurirano</p>
+                </div>
+                <div className="bg-muted/30 border border-border rounded-lg p-2.5 text-center">
+                  <p className="text-xl font-bold text-muted-foreground">{stockSyncResult.skipped}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Preskočeno</p>
+                </div>
+              </div>
+              {stockSyncResult.changes.length > 0 && (
+                <div className="px-3 pb-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Izmene ({stockSyncResult.changes.length})</p>
+                  <div className="max-h-36 overflow-y-auto space-y-1">
+                    {stockSyncResult.changes.map((c, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs bg-muted/30 border border-border rounded-lg px-3 py-1.5 gap-2">
+                        <span className="font-mono text-muted-foreground shrink-0">{c.sku}</span>
+                        <span className="text-foreground flex-1 truncate">{c.name}</span>
+                        <span className={`shrink-0 font-medium ${c.inStock ? 'text-green-600' : 'text-red-600'}`}>
+                          {c.inStock ? 'Na stanju' : 'Nema'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -2059,6 +2059,19 @@ export interface MinottiB2BImportOptions {
   replaceImages?: boolean;
 }
 
+export interface StockSyncChange {
+  sku: string;
+  name: string;
+  inStock: boolean;
+}
+
+export interface StockSyncResult {
+  checked: number;
+  updated: number;
+  skipped: number;
+  changes: StockSyncChange[];
+}
+
 type RawMinottiB2BFilters = Partial<Record<'brands' | 'brand' | 'categories' | 'category' | 'subcategories' | 'subcategory' | 'filters', unknown>>;
 
 function normalizeFilterList(value: unknown): string[] {
@@ -2152,6 +2165,10 @@ export async function runMinottiB2BImport(supplierId: string, options: MinottiB2
     method: 'POST',
     body: safeJsonStringify(options),
   });
+}
+
+export async function syncMinottiB2BStock(): Promise<StockSyncResult> {
+  return request('/import/minotti-b2b/sync-stock', { method: 'POST' });
 }
 
 // ── Slider ────────────────────────────────────────────────────────────────────

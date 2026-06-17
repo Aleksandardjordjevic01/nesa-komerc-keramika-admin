@@ -3,7 +3,9 @@
     "allow": [
       "Bash(curl -s -c /tmp/cookies.txt -X POST http://localhost:3000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@admin.com\",\"password\":\"admin\"}' -b /tmp/cookies.txt)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:3000/api/v1/slider/admin\" -H \"Cookie: $\\(curl -s -c /tmp/cookies.txt -X POST http://localhost:3000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@admin.com\",\"password\":\"admin\"}' -b /tmp/cookies.txt)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(ls /Users/aleksandar/Desktop/)",
+      "Read(//Users/aleksandar/Desktop/**)"
     ]
   }
 }
