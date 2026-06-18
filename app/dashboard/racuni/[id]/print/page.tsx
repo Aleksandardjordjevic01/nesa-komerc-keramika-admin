@@ -5,6 +5,9 @@ import { useParams } from 'next/navigation';
 import { Printer, Download, ArrowLeft, Loader2 } from 'lucide-react';
 import { getInvoice, type Invoice } from '../../../../../lib/api/client';
 
+const BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1').replace('/api/v1', '');
+const LOGO_URL = `${BACKEND_URL}/uploads/logo/nesa-komerc-logo.svg`;
+
 // Podaci firme — menjaj po potrebi
 const COMPANY = {
   name: 'Neša Komerc D.O.O.',
@@ -97,9 +100,8 @@ export default function PrintInvoicePage() {
           {/* Zaglavlje */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
             <div>
-              <div style={{ fontSize: '16px', fontWeight: 700, color: '#111', marginBottom: '4px' }}>
-                {COMPANY.name}
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={LOGO_URL} alt={COMPANY.name} style={{ height: '48px', marginBottom: '10px', display: 'block' }} />
               <div style={{ color: '#111', lineHeight: '1.6', fontSize: '10px' }}>
                 <div>{COMPANY.address}</div>
                 <div>{COMPANY.city}</div>
