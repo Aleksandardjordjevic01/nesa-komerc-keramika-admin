@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Save, Loader2, Plus, X, Upload, Check,
+  ArrowLeft, Save, Loader2, Plus, X, Upload, Check, Search, Link,
 } from 'lucide-react';
 import { DashboardLayout } from '../../../../components/layout/dashboard-layout';
 import {
   createProduct,
   getBrands,
+  getProducts,
   type Brand, type VariantItem,
 } from '../../../../lib/api/client';
 import { getAdminCategoryFlat, type AdminFlatCategory } from '../../../../lib/api/categories';
@@ -180,6 +181,35 @@ function VariantsEditor({
   const iconRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
 
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<{ id: string; name: string }[]>([]);
+  const [linkedProduct, setLinkedProduct] = useState<{ id: string; name: string } | null>(null);
+  const [searchingProduct, setSearchingProduct] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!productSearch.trim()) { setProductResults([]); return; }
+    const t = setTimeout(async () => {
+      setSearchingProduct(true);
+      try {
+        const res = await getProducts({ search: productSearch, limit: 8 });
+        setProductResults(res.data.map((p) => ({ id: p.id, name: p.name })));
+      } catch { /* ignore */ }
+      finally { setSearchingProduct(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [productSearch]);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setProductResults([]);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   async function handleIconUpload(file: File) {
     setUploading(true);
     try { setAddIconUrl(await uploadVariantIcon(file)); }
@@ -202,6 +232,7 @@ function VariantsEditor({
       if (addType === 'color') { v.type = 'color'; v.colorHex = addColor; }
       if (addType === 'icon' && addIconUrl) { v.type = 'icon'; v.iconUrl = addIconUrl; }
       if (addType === 'image' && addImageUrl) { v.type = 'image'; v.imageUrl = addImageUrl; }
+      if (linkedProduct) { v.linkedProductId = linkedProduct.id; v.linkedProductName = linkedProduct.name; }
       onChange([...variants, v]);
     }
     setName('');
@@ -209,6 +240,8 @@ function VariantsEditor({
     setAddColor('#ed2c18');
     setAddIconUrl(null);
     setAddImageUrl(null);
+    setLinkedProduct(null);
+    setProductSearch('');
   }
 
   return (
@@ -227,6 +260,12 @@ function VariantsEditor({
                 <img src={v.imageUrl} alt="" className="w-4 h-4 rounded-full object-cover border border-border shrink-0" />
               )}
               {v.name}
+              {v.linkedProductName && (
+                <span className="flex items-center gap-0.5 text-primary/70 font-normal">
+                  <Link className="w-2.5 h-2.5" />
+                  <span className="max-w-[100px] truncate">{v.linkedProductName}</span>
+                </span>
+              )}
               <button type="button" onClick={() => onChange(variants.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive ml-0.5">
                 <X className="w-3 h-3" />
               </button>
@@ -315,6 +354,47 @@ function VariantsEditor({
         <button type="button" onClick={add} className="px-3 py-2 bg-primary text-white rounded-xl text-sm hover:bg-primary/90">
           <Plus className="w-4 h-4" />
         </button>
+      </div>
+
+      {/* Product link */}
+      <div ref={searchContainerRef} className="relative">
+        <p className="text-xs text-muted-foreground mb-1.5">Poveži sa proizvodom (opciono)</p>
+        {linkedProduct ? (
+          <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/30 rounded-xl text-sm">
+            <Link className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="flex-1 text-sm text-foreground truncate">{linkedProduct.name}</span>
+            <button type="button" onClick={() => { setLinkedProduct(null); setProductSearch(''); }} className="text-muted-foreground hover:text-destructive">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              placeholder="Pretraži proizvode..."
+              className={`${INPUT_SM} pl-8`}
+            />
+            {searchingProduct && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+            )}
+          </div>
+        )}
+        {productResults.length > 0 && (
+          <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+            {productResults.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); setLinkedProduct(p); setProductSearch(''); setProductResults([]); }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors truncate"
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

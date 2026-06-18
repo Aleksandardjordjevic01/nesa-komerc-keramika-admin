@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Package,
   Search,
@@ -31,7 +32,15 @@ function formatPrice(price: number): string {
   }).format(price);
 }
 
-export default function ProizvodiPage() {
+function ProizvodiPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const urlSearch = searchParams.get('search') ?? '';
+  const urlCategoryId = searchParams.get('categoryId') ?? '';
+  const urlIsFeatured = searchParams.get('isFeatured') ?? '';
+  const urlPage = Number(searchParams.get('page') ?? '1');
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<AdminFlatCategory[]>([]);
   const [meta, setMeta] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
@@ -40,20 +49,32 @@ export default function ProizvodiPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [isFeatured, setIsFeatured] = useState('');
-  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState(urlSearch);
+
+  function syncUrl(overrides: { search?: string; categoryId?: string; isFeatured?: string; page?: number }) {
+    const p = new URLSearchParams();
+    const next = {
+      search: urlSearch,
+      categoryId: urlCategoryId,
+      isFeatured: urlIsFeatured,
+      page: urlPage,
+      ...overrides,
+    };
+    if (next.search) p.set('search', next.search);
+    if (next.categoryId) p.set('categoryId', next.categoryId);
+    if (next.isFeatured) p.set('isFeatured', next.isFeatured);
+    if (next.page > 1) p.set('page', String(next.page));
+    router.replace(`/dashboard/proizvodi${p.toString() ? '?' + p.toString() : ''}`, { scroll: false });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params: ProductsParams = { page, limit: 20 };
-      if (search) params.search = search;
-      if (categoryId) params.categoryId = categoryId;
-      if (isFeatured === 'true') params.isFeatured = true;
+      const params: ProductsParams = { page: urlPage, limit: 20 };
+      if (urlSearch) params.search = urlSearch;
+      if (urlCategoryId) params.categoryId = urlCategoryId;
+      if (urlIsFeatured === 'true') params.isFeatured = true;
       const res = await getProducts(params);
       setProducts(res.data);
       setMeta(res.meta);
@@ -62,7 +83,7 @@ export default function ProizvodiPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, categoryId, isFeatured]);
+  }, [urlPage, urlSearch, urlCategoryId, urlIsFeatured]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { getAdminCategoryFlat().then(setCategories).catch(() => {}); }, []);
@@ -111,7 +132,10 @@ export default function ProizvodiPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <form
             className="relative flex-1"
-            onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              syncUrl({ search: searchInput, page: 1 });
+            }}
           >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
@@ -121,21 +145,28 @@ export default function ProizvodiPage() {
               className="w-full pl-9 pr-4 py-3 text-sm border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
             {searchInput && (
-              <button type="button" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput('');
+                  syncUrl({ search: '', page: 1 });
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+              >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
           </form>
           <div className="flex gap-3 sm:contents">
             <SelectDropdown
-              value={categoryId}
-              onChange={(v) => { setCategoryId(v); setPage(1); }}
+              value={urlCategoryId}
+              onChange={(v) => syncUrl({ categoryId: v, page: 1 })}
               options={categoryOptions}
               className="flex-1 sm:flex-none sm:w-44"
             />
             <SelectDropdown
-              value={isFeatured}
-              onChange={(v) => { setIsFeatured(v); setPage(1); }}
+              value={urlIsFeatured}
+              onChange={(v) => syncUrl({ isFeatured: v, page: 1 })}
               options={[{ value: '', label: 'Svi tipovi' }, { value: 'true', label: 'Istaknuti' }]}
               className="flex-1 sm:flex-none sm:w-32"
             />
@@ -329,12 +360,18 @@ export default function ProizvodiPage() {
                 Strana {meta.page} od {meta.totalPages} ({meta.total} ukupno)
               </span>
               <div className="flex gap-2">
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={meta.page <= 1}
-                  className="p-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 transition-colors">
+                <button
+                  onClick={() => syncUrl({ page: Math.max(1, urlPage - 1) })}
+                  disabled={meta.page <= 1}
+                  className="p-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 transition-colors"
+                >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <button onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))} disabled={meta.page >= meta.totalPages}
-                  className="p-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 transition-colors">
+                <button
+                  onClick={() => syncUrl({ page: Math.min(meta.totalPages, urlPage + 1) })}
+                  disabled={meta.page >= meta.totalPages}
+                  className="p-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 transition-colors"
+                >
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -365,5 +402,13 @@ export default function ProizvodiPage() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+export default function ProizvodiPage() {
+  return (
+    <Suspense>
+      <ProizvodiPageContent />
+    </Suspense>
   );
 }

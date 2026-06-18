@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Trash2, Loader2, Plus, X, Upload,
-  Star, Package, GripVertical, Check,
+  Star, Package, GripVertical, Check, Search, Pencil, Link,
 } from 'lucide-react';
 import { DashboardLayout } from '../../../../components/layout/dashboard-layout';
 import {
-  getProduct, updateProduct, deleteProduct, getBrands, patchProductInStock,
+  getProduct, updateProduct, deleteProduct, getBrands, patchProductInStock, getProducts,
   type Product, type Brand, type VariantItem,
 } from '../../../../lib/api/client';
 import { getAdminCategoryFlat, type AdminFlatCategory } from '../../../../lib/api/categories';
@@ -176,155 +176,301 @@ function VariantsEditor({
   variants: VariantItem[];
   onChange: (v: VariantItem[]) => void;
 }) {
-  const [name, setName] = useState('');
-  const [addType, setAddType] = useState<'color' | 'icon' | 'image' | null>(null);
-  const [addColor, setAddColor] = useState('#ed2c18');
-  const [addIconUrl, setAddIconUrl] = useState<string | null>(null);
-  const [addImageUrl, setAddImageUrl] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [formType, setFormType] = useState<'color' | 'icon' | 'image' | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formColor, setFormColor] = useState('#ed2c18');
+  const [formIconUrl, setFormIconUrl] = useState<string | null>(null);
+  const [formImageUrl, setFormImageUrl] = useState<string | null>(null);
+  const [formLinkedId, setFormLinkedId] = useState('');
+  const [formLinkedName, setFormLinkedName] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<Product[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+  const [showProductResults, setShowProductResults] = useState(false);
   const [uploading, setUploading] = useState(false);
   const iconRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const q = productSearch.trim();
+    if (q.length < 2) { setProductResults([]); setShowProductResults(false); return; }
+    const t = setTimeout(async () => {
+      setSearchingProducts(true);
+      try {
+        const res = await getProducts({ search: q, limit: 8 });
+        setProductResults(res.data);
+        setShowProductResults(true);
+      } catch { setProductResults([]); }
+      finally { setSearchingProducts(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [productSearch]);
+
+  function resetForm() {
+    setFormType(null); setFormName(''); setFormColor('#ed2c18');
+    setFormIconUrl(null); setFormImageUrl(null);
+    setFormLinkedId(''); setFormLinkedName('');
+    setProductSearch(''); setProductResults([]); setShowProductResults(false);
+  }
+
+  function startEdit(i: number) {
+    const v = variants[i];
+    resetForm();
+    setShowForm(false);
+    setEditIndex(i);
+    setFormType(v.type ?? null);
+    setFormName(v.name);
+    setFormColor(v.colorHex ?? '#ed2c18');
+    setFormIconUrl(v.iconUrl ?? null);
+    setFormImageUrl(v.imageUrl ?? null);
+    setFormLinkedId(v.linkedProductId ?? '');
+    setFormLinkedName(v.linkedProductName ?? '');
+  }
+
+  function cancelForm() {
+    resetForm();
+    setShowForm(false);
+    setEditIndex(null);
+  }
+
+  function handleSave() {
+    const val = formName.trim();
+    if (!val) return;
+    const v: VariantItem = { name: val };
+    if (formType === 'color') { v.type = 'color'; v.colorHex = formColor; }
+    if (formType === 'icon' && formIconUrl) { v.type = 'icon'; v.iconUrl = formIconUrl; }
+    if (formType === 'image' && formImageUrl) { v.type = 'image'; v.imageUrl = formImageUrl; }
+    if (formLinkedId) { v.linkedProductId = formLinkedId; v.linkedProductName = formLinkedName; }
+    if (editIndex !== null) {
+      const next = [...variants];
+      next[editIndex] = v;
+      onChange(next);
+      setEditIndex(null);
+    } else {
+      onChange([...variants, v]);
+      setShowForm(false);
+    }
+    resetForm();
+  }
+
   async function handleIconUpload(file: File) {
     setUploading(true);
-    try { setAddIconUrl(await uploadVariantIcon(file)); }
+    try { setFormIconUrl(await uploadVariantIcon(file)); }
     catch { /* ignore */ }
     finally { setUploading(false); }
   }
 
   async function handleImageUpload(file: File) {
     setUploading(true);
-    try { setAddImageUrl(await uploadProductImage(file)); }
+    try { setFormImageUrl(await uploadProductImage(file)); }
     catch { /* ignore */ }
     finally { setUploading(false); }
   }
 
-  function add() {
-    const val = name.trim();
-    if (!val) return;
-    if (!variants.find((v) => v.name.toLowerCase() === val.toLowerCase())) {
-      const v: VariantItem = { name: val };
-      if (addType === 'color') { v.type = 'color'; v.colorHex = addColor; }
-      if (addType === 'icon' && addIconUrl) { v.type = 'icon'; v.iconUrl = addIconUrl; }
-      if (addType === 'image' && addImageUrl) { v.type = 'image'; v.imageUrl = addImageUrl; }
-      onChange([...variants, v]);
-    }
-    setName('');
-    setAddType(null);
-    setAddColor('#ed2c18');
-    setAddIconUrl(null);
-    setAddImageUrl(null);
+  const isEditing = editIndex !== null;
+  const isAdding = showForm && !isEditing;
+
+  function renderForm(saveLabel: string) {
+    return (
+      <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
+        {/* Tip vizuala */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2">Tip vizuala (opciono)</p>
+          <div className="flex gap-1.5">
+            {(['color', 'icon', 'image'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFormType(formType === t ? null : t)}
+                className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
+                  formType === t
+                    ? 'border-primary bg-primary text-white'
+                    : 'border-border bg-card text-muted-foreground hover:border-primary/50'
+                }`}
+              >
+                {t === 'color' ? 'Boja' : t === 'icon' ? 'Ikonica' : 'Slika'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Vizual */}
+        {formType === 'color' && (
+          <div className="flex items-center gap-3">
+            <input type="color" value={formColor} onChange={(e) => setFormColor(e.target.value)}
+              className="h-9 w-9 rounded-lg cursor-pointer border border-border p-0.5 bg-card shrink-0" />
+            <span className="text-xs text-muted-foreground font-mono">{formColor}</span>
+          </div>
+        )}
+        {formType === 'icon' && (
+          <div>
+            {formIconUrl ? (
+              <div className="flex items-center gap-2">
+                <img src={formIconUrl} alt="" className="w-8 h-8 object-contain border border-border rounded-lg p-1 bg-white" />
+                <button type="button" onClick={() => setFormIconUrl(null)} className="text-xs text-muted-foreground hover:text-destructive">Ukloni</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => iconRef.current?.click()} disabled={uploading}
+                className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-60">
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                {uploading ? 'Uploading...' : 'Dodaj ikonu (SVG/PNG)'}
+              </button>
+            )}
+            <input ref={iconRef} type="file" accept="image/svg+xml,image/*" className="hidden"
+              onChange={(e) => { if (e.target.files?.[0]) { handleIconUpload(e.target.files[0]); e.target.value = ''; } }} />
+          </div>
+        )}
+        {formType === 'image' && (
+          <div>
+            {formImageUrl ? (
+              <div className="flex items-center gap-2">
+                <img src={formImageUrl} alt="" className="w-10 h-10 object-cover rounded-lg border border-border" />
+                <button type="button" onClick={() => setFormImageUrl(null)} className="text-xs text-muted-foreground hover:text-destructive">Ukloni</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => imageRef.current?.click()} disabled={uploading}
+                className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-60">
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                {uploading ? 'Uploading...' : 'Dodaj sliku'}
+              </button>
+            )}
+            <input ref={imageRef} type="file" accept="image/*" className="hidden"
+              onChange={(e) => { if (e.target.files?.[0]) { handleImageUpload(e.target.files[0]); e.target.value = ''; } }} />
+          </div>
+        )}
+
+        {/* Naziv */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">Naziv varijante *</p>
+          <input value={formName} onChange={(e) => setFormName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSave(); } }}
+            placeholder="npr. Hrom, Mat crna, 60cm..."
+            className={INPUT_SM} autoFocus />
+        </div>
+
+        {/* Poveži sa proizvodom */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">Poveži sa proizvodom (opciono)</p>
+          {formLinkedId ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border bg-card">
+              <Package className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-sm text-foreground flex-1 min-w-0 truncate">{formLinkedName}</span>
+              <button type="button" onClick={() => { setFormLinkedId(''); setFormLinkedName(''); setProductSearch(''); }}
+                className="text-muted-foreground hover:text-destructive shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <input value={productSearch}
+                onChange={(e) => { setProductSearch(e.target.value); if (!e.target.value) setShowProductResults(false); }}
+                onFocus={() => { if (productResults.length > 0) setShowProductResults(true); }}
+                placeholder="Pretraži proizvod..."
+                className={INPUT_SM + ' pl-9 pr-8'} />
+              {searchingProducts && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+              )}
+              {showProductResults && productResults.length > 0 && (
+                <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-border rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                  {productResults.map((p) => (
+                    <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => { setFormLinkedId(p.id); setFormLinkedName(p.name); setProductSearch(''); setShowProductResults(false); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted text-left transition-colors first:rounded-t-xl last:rounded-b-xl">
+                      {p.images?.[0] ? (
+                        <img src={p.images[0]} alt="" className="w-8 h-8 rounded-lg object-cover border border-border shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Package className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground truncate">{p.name}</p>
+                        {p.sku && <p className="text-[11px] text-muted-foreground">SKU: {p.sku}</p>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Akcije */}
+        <div className="flex gap-2 pt-1">
+          <button type="button" onClick={handleSave} disabled={!formName.trim() || uploading}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+            <Check className="w-4 h-4" /> {saveLabel}
+          </button>
+          <button type="button" onClick={cancelForm}
+            className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-xl hover:bg-muted transition-colors">
+            Odustani
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-3">
       {/* Existing variants */}
       {variants.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
           {variants.map((v, i) => (
-            <span key={i} className="inline-flex items-center gap-1.5 text-xs bg-muted text-foreground px-2.5 py-1.5 rounded-full border border-border">
-              {v.type === 'color' && v.colorHex && (
-                <span className="w-3 h-3 rounded-full shrink-0 border border-black/10" style={{ background: v.colorHex }} />
+            <div key={i}>
+              {/* Row */}
+              {editIndex !== i && (
+                <div className="flex items-center gap-3 px-3 py-2.5 bg-card">
+                  <div className="shrink-0 w-5 flex items-center justify-center">
+                    {v.type === 'color' && v.colorHex && (
+                      <span className="w-5 h-5 rounded-full block border border-black/10" style={{ background: v.colorHex }} />
+                    )}
+                    {v.type === 'icon' && v.iconUrl && (
+                      <img src={v.iconUrl} alt="" className="w-5 h-5 object-contain" />
+                    )}
+                    {v.type === 'image' && v.imageUrl && (
+                      <img src={v.imageUrl} alt="" className="w-5 h-5 rounded-full object-cover border border-border" />
+                    )}
+                  </div>
+                  <span className="text-sm text-foreground font-medium flex-1 min-w-0 truncate">{v.name}</span>
+                  {v.linkedProductName && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[140px] hidden sm:block">
+                      → {v.linkedProductName}
+                    </span>
+                  )}
+                  <button type="button" onClick={() => startEdit(i)}
+                    className="text-muted-foreground hover:text-primary shrink-0 transition-colors" title="Izmeni">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button type="button" onClick={() => onChange(variants.filter((_, j) => j !== i))}
+                    className="text-muted-foreground hover:text-destructive shrink-0 transition-colors" title="Obriši">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               )}
-              {v.type === 'icon' && v.iconUrl && (
-                <img src={v.iconUrl} alt="" className="w-3.5 h-3.5 shrink-0 object-contain" />
+              {/* Inline edit form */}
+              {editIndex === i && (
+                <div className="p-3 bg-muted/30">
+                  {renderForm('Sačuvaj izmene')}
+                </div>
               )}
-              {v.type === 'image' && v.imageUrl && (
-                <img src={v.imageUrl} alt="" className="w-4 h-4 rounded-full object-cover border border-border shrink-0" />
-              )}
-              {v.name}
-              <button type="button" onClick={() => onChange(variants.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive ml-0.5">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
+            </div>
           ))}
         </div>
       )}
 
-      {/* Add type selector */}
-      <div className="flex gap-1.5">
-        {(['color', 'icon', 'image'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setAddType(addType === t ? null : t)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
-              addType === t ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:border-primary/40'
-            }`}
-          >
-            {t === 'color' ? 'Boja' : t === 'icon' ? 'Ikonica' : 'Slika'}
-          </button>
-        ))}
-      </div>
+      {/* Add form */}
+      {isAdding && renderForm('Dodaj varijantu')}
 
-      {/* Type-specific input */}
-      {addType === 'color' && (
-        <div className="flex items-center gap-2.5">
-          <input
-            type="color"
-            value={addColor}
-            onChange={(e) => setAddColor(e.target.value)}
-            className="h-9 w-9 rounded-lg cursor-pointer border border-border p-0.5 bg-card"
-          />
-          <span className="text-xs text-muted-foreground font-mono">{addColor}</span>
-        </div>
-      )}
-      {addType === 'icon' && (
-        <div>
-          {addIconUrl ? (
-            <div className="flex items-center gap-2">
-              <img src={addIconUrl} alt="" className="w-8 h-8 object-contain border border-border rounded-lg p-1 bg-muted" />
-              <button type="button" onClick={() => setAddIconUrl(null)} className="text-xs text-muted-foreground hover:text-destructive">Ukloni</button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => iconRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-60"
-            >
-              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              {uploading ? 'Uploading...' : 'Dodaj ikonu (SVG)'}
-            </button>
-          )}
-          <input ref={iconRef} type="file" accept="image/svg+xml,image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) { handleIconUpload(e.target.files[0]); e.target.value = ''; } }} />
-        </div>
-      )}
-      {addType === 'image' && (
-        <div>
-          {addImageUrl ? (
-            <div className="flex items-center gap-2">
-              <img src={addImageUrl} alt="" className="w-10 h-10 object-cover rounded-lg border border-border" />
-              <button type="button" onClick={() => setAddImageUrl(null)} className="text-xs text-muted-foreground hover:text-destructive">Ukloni</button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => imageRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 disabled:opacity-60"
-            >
-              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              {uploading ? 'Uploading...' : 'Dodaj sliku'}
-            </button>
-          )}
-          <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) { handleImageUpload(e.target.files[0]); e.target.value = ''; } }} />
-        </div>
-      )}
-
-      {/* Name input + add button */}
-      <div className="flex gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-          placeholder="Npr. Hrom, Mat crna... (Enter da dodaš)"
-          className={INPUT_SM}
-        />
-        <button type="button" onClick={add} className="px-3 py-2 bg-primary text-white rounded-xl text-sm hover:bg-primary/90">
-          <Plus className="w-4 h-4" />
+      {/* Add button — hidden while editing or adding */}
+      {!isAdding && !isEditing && (
+        <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
+          className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+          <Plus className="w-3.5 h-3.5" /> Dodaj varijantu
         </button>
-      </div>
+      )}
     </div>
   );
 }
@@ -603,7 +749,7 @@ export default function ProductEditPage() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
-              onClick={() => router.push('/dashboard/proizvodi')}
+              onClick={() => router.back()}
               className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -741,6 +887,8 @@ export default function ProductEditPage() {
                   <SelectDropdown
                     value={form.categoryId}
                     onChange={(v) => setField('categoryId', v)}
+                    searchable
+                    searchPlaceholder="Pretraži kategorije..."
                     options={[
                       { value: '', label: '— Kategorija —' },
                       ...categories.map((c) => ({
@@ -754,6 +902,8 @@ export default function ProductEditPage() {
                   <SelectDropdown
                     value={form.brandId}
                     onChange={(v) => setField('brandId', v)}
+                    searchable
+                    searchPlaceholder="Pretraži brendove..."
                     options={[
                       { value: '', label: '— Brend —' },
                       ...brands.map((b) => ({ value: b.id, label: b.name })),

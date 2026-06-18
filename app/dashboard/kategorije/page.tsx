@@ -485,9 +485,6 @@ function CategoryRow({
               <Folder className="h-4 w-4 text-muted-foreground/60 shrink-0" />
             )}
             <span className="font-medium text-sm text-foreground ml-1">{node.name}</span>
-            {node.icon && (
-              <span className="text-xs text-muted-foreground ml-1 font-mono">({node.icon})</span>
-            )}
           </div>
         </td>
 

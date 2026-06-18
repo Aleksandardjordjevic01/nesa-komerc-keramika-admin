@@ -403,6 +403,8 @@ export type VariantItem = {
   colorHex?: string;
   iconUrl?: string;
   imageUrl?: string;
+  linkedProductId?: string;
+  linkedProductName?: string;
 };
 
 export interface Product {
