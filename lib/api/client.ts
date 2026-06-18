@@ -2230,3 +2230,72 @@ export async function uploadSliderImage(file: File): Promise<string> {
   const data = body?.data !== undefined ? body.data : body;
   return (data.url ?? data.imageUrl ?? data.path) as string;
 }
+
+// ── Invoices ──────────────────────────────────────────────────────────────────
+
+export type InvoiceType = 'racun' | 'predracun';
+export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'cancelled';
+
+export interface InvoiceItem {
+  description: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  discount?: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  type: InvoiceType;
+  status: InvoiceStatus;
+  clientName: string;
+  clientAddress: string | null;
+  clientCity: string | null;
+  clientZip: string | null;
+  clientPib: string | null;
+  clientMb: string | null;
+  clientEmail: string | null;
+  clientPhone: string | null;
+  items: InvoiceItem[];
+  subtotalAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  issueDate: string;
+  dueDate: string | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: InvoiceType;
+  status?: InvoiceStatus;
+}
+
+export async function getInvoices(params: InvoiceParams = {}): Promise<{ data: Invoice[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') qs.set(k, String(v)); });
+  return requestPaginated<Invoice>(`/invoices?${qs}`);
+}
+
+export async function getInvoice(id: string): Promise<Invoice> {
+  return request<Invoice>(`/invoices/${id}`);
+}
+
+export async function createInvoice(payload: Partial<Invoice>): Promise<Invoice> {
+  return request<Invoice>('/invoices', { method: 'POST', body: safeJsonStringify(payload) });
+}
+
+export async function updateInvoice(id: string, payload: Partial<Invoice>): Promise<Invoice> {
+  return request<Invoice>(`/invoices/${id}`, { method: 'PUT', body: safeJsonStringify(payload) });
+}
+
+export async function deleteInvoice(id: string): Promise<void> {
+  return request<void>(`/invoices/${id}`, { method: 'DELETE' });
+}

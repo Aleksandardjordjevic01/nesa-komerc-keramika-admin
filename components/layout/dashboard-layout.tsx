@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   Upload,
   Building2,
+  FileText,
 } from 'lucide-react';
 import { adminLogout, adminMe, type AdminUser } from '../../lib/api/client';
 import { BrandLogo } from '../shared/brand-logo';
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/reklamacije', label: 'Reklamacije', icon: MessageSquareDashed },
   { href: '/dashboard/kuponi', label: 'Kuponi', icon: Percent },
   { href: '/dashboard/dostava', label: 'Dostava', icon: Truck },
+  { href: '/dashboard/racuni', label: 'Računi', icon: FileText },
   { href: '/dashboard/analitika', label: 'Analitika', icon: BarChart2 },
 ];
 
