@@ -2281,7 +2281,8 @@ export interface InvoiceParams {
 export async function getInvoices(params: InvoiceParams = {}): Promise<{ data: Invoice[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') qs.set(k, String(v)); });
-  return requestPaginated<Invoice>(`/invoices?${qs}`);
+  const res = await requestPaginated<Invoice>(`/invoices?${qs}`);
+  return { data: res.data, meta: { ...res.meta, totalPages: res.meta.totalPages ?? Math.ceil(res.meta.total / res.meta.limit) } };
 }
 
 export async function getInvoice(id: string): Promise<Invoice> {

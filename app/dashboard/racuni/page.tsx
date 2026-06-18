@@ -88,7 +88,7 @@ export default function RacuniPage() {
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
@@ -98,7 +98,7 @@ export default function RacuniPage() {
           </div>
           <button
             onClick={() => router.push('/dashboard/racuni/novi')}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium shrink-0"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium"
           >
             <Plus className="w-4 h-4" />
             Novi dokument
@@ -137,7 +137,7 @@ export default function RacuniPage() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* List */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16">
@@ -151,72 +151,131 @@ export default function RacuniPage() {
               <p className="text-sm text-muted-foreground">Nema dokumenata</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Broj</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tip</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Klijent</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datum</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Iznos</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {invoices.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs font-semibold text-foreground">{inv.invoiceNumber}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inv.type === 'racun' ? 'bg-primary/10 text-primary' : 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'}`}>
+            <>
+              {/* ── Cards — mobile & tablet ── */}
+              <div className="lg:hidden divide-y divide-border">
+                {invoices.map((inv) => (
+                  <div key={inv.id} className="p-4 hover:bg-muted/20 transition-colors">
+                    {/* Row 1: broj + tip + status */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-xs font-semibold text-foreground shrink-0">{inv.invoiceNumber}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${inv.type === 'racun' ? 'bg-primary/10 text-primary' : 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'}`}>
                           {TYPE_LABELS[inv.type]}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-foreground truncate max-w-[180px]">{inv.clientName}</p>
-                        {inv.clientPib && <p className="text-xs text-muted-foreground">PIB: {inv.clientPib}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(inv.issueDate)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[inv.status]}`}>
-                          {STATUS_LABELS[inv.status]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-foreground whitespace-nowrap">
-                        {formatPrice(Number(inv.totalAmount))}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLORS[inv.status]}`}>
+                        {STATUS_LABELS[inv.status]}
+                      </span>
+                    </div>
+
+                    {/* Row 2: klijent */}
+                    <p className="text-sm font-medium text-foreground truncate mb-0.5">{inv.clientName}</p>
+                    {inv.clientPib && <p className="text-xs text-muted-foreground mb-2">PIB: {inv.clientPib}</p>}
+
+                    {/* Row 3: datum + iznos + akcije */}
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <span className="text-xs text-muted-foreground">{formatDate(inv.issueDate)}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-foreground">{formatPrice(Number(inv.totalAmount))}</span>
+                        <div className="flex items-center gap-0.5">
                           <button
                             onClick={() => window.open(`/dashboard/racuni/${inv.id}/print`, '_blank')}
-                            title="Štampaj / PDF"
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                            title="Štampaj"
                           >
                             <Printer className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => router.push(`/dashboard/racuni/${inv.id}`)}
-                            title="Uredi"
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                            title="Uredi"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(inv.id, inv.invoiceNumber)}
                             disabled={deleting === inv.id}
-                            title="Obriši"
                             className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                            title="Obriši"
                           >
                             {deleting === inv.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                           </button>
                         </div>
-                      </td>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Table — desktop only ── */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Broj</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tip</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Klijent</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datum</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Iznos</th>
+                      <th className="px-4 py-3" />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {invoices.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3 font-mono text-xs font-semibold text-foreground">{inv.invoiceNumber}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inv.type === 'racun' ? 'bg-primary/10 text-primary' : 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'}`}>
+                            {TYPE_LABELS[inv.type]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-foreground truncate max-w-[180px]">{inv.clientName}</p>
+                          {inv.clientPib && <p className="text-xs text-muted-foreground">PIB: {inv.clientPib}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(inv.issueDate)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[inv.status]}`}>
+                            {STATUS_LABELS[inv.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-foreground whitespace-nowrap">
+                          {formatPrice(Number(inv.totalAmount))}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => window.open(`/dashboard/racuni/${inv.id}/print`, '_blank')}
+                              title="Štampaj / PDF"
+                              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => router.push(`/dashboard/racuni/${inv.id}`)}
+                              title="Uredi"
+                              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(inv.id, inv.invoiceNumber)}
+                              disabled={deleting === inv.id}
+                              title="Obriši"
+                              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {deleting === inv.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
