@@ -72,7 +72,7 @@ function ProductSearchInput({
               top: showAbove ? undefined : rect.bottom + 4,
               bottom: showAbove ? window.innerHeight - rect.top + 4 : undefined,
               left: rect.left,
-              width: Math.max(rect.width, 340),
+              width: Math.max(rect.width, 480),
               maxHeight: maxH,
               zIndex: 9999,
             };
@@ -87,7 +87,7 @@ function ProductSearchInput({
               className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-muted transition-colors border-b border-border/40 last:border-0 gap-3"
             >
               <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                <p className="text-sm font-medium text-foreground">{p.name}</p>
                 <p className="text-xs text-muted-foreground">{p.category?.name}{p.sku ? ` · ${p.sku}` : ''}</p>
               </div>
               <span className="text-sm font-semibold text-foreground whitespace-nowrap shrink-0">
