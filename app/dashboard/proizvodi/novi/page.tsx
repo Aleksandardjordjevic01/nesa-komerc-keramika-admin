@@ -689,6 +689,8 @@ export default function ProductCreatePage() {
                   <SelectDropdown
                     value={form.categoryId}
                     onChange={(v) => setField('categoryId', v)}
+                    searchable
+                    searchPlaceholder="Pretraži kategorije..."
                     options={[
                       { value: '', label: '— Kategorija —' },
                       ...categories.map((c) => ({
@@ -702,6 +704,8 @@ export default function ProductCreatePage() {
                   <SelectDropdown
                     value={form.brandId}
                     onChange={(v) => setField('brandId', v)}
+                    searchable
+                    searchPlaceholder="Pretraži brendove..."
                     options={[
                       { value: '', label: '— Brend —' },
                       ...brands.map((b) => ({ value: b.id, label: b.name })),
