@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, Plus, X, Upload, Check, Search, Link,
@@ -186,6 +187,9 @@ function VariantsEditor({
   const [linkedProduct, setLinkedProduct] = useState<{ id: string; name: string } | null>(null);
   const [searchingProduct, setSearchingProduct] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     if (!productSearch.trim()) { setProductResults([]); return; }
@@ -202,13 +206,39 @@ function VariantsEditor({
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+      const t = e.target as Node;
+      if (!searchContainerRef.current?.contains(t) && !dropdownRef.current?.contains(t)) {
         setProductResults([]);
       }
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    if (productResults.length > 0 && searchInputRef.current) {
+      const r = searchInputRef.current.getBoundingClientRect();
+      setDropdownPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    } else {
+      setDropdownPos(null);
+    }
+  }, [productResults]);
+
+  useEffect(() => {
+    if (productResults.length === 0) return;
+    function updatePos() {
+      if (searchInputRef.current) {
+        const r = searchInputRef.current.getBoundingClientRect();
+        setDropdownPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
+    }
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [productResults.length]);
 
   async function handleIconUpload(file: File) {
     setUploading(true);
@@ -245,6 +275,7 @@ function VariantsEditor({
   }
 
   return (
+    <>
     <div className="space-y-3">
       {variants.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -371,6 +402,7 @@ function VariantsEditor({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             <input
+              ref={searchInputRef}
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
               placeholder="Pretraži proizvode..."
@@ -381,22 +413,28 @@ function VariantsEditor({
             )}
           </div>
         )}
-        {productResults.length > 0 && (
-          <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-            {productResults.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); setLinkedProduct(p); setProductSearch(''); setProductResults([]); }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors truncate"
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
+    {dropdownPos && typeof document !== 'undefined' && createPortal(
+      <div
+        ref={dropdownRef}
+        style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+        className="bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+      >
+        {productResults.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); setLinkedProduct(p); setProductSearch(''); setProductResults([]); }}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors truncate"
+          >
+            {p.name}
+          </button>
+        ))}
+      </div>,
+      document.body
+    )}
+    </>
   );
 }
 

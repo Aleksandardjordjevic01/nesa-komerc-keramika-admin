@@ -277,19 +277,19 @@ export default function InvoiceForm({ initial }: Props) {
 
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-xl transition-colors">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-xl transition-colors shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-semibold text-foreground truncate">
                 {isEdit ? `Uredi: ${initial.invoiceNumber}` : 'Novi dokument'}
               </h1>
-              {isEdit && <p className="text-xs text-muted-foreground mt-0.5">Kreirao: {initial.createdBy}</p>}
+              {isEdit && <p className="text-xs text-muted-foreground mt-0.5 truncate">Kreirao: {initial.createdBy}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => router.back()} className="px-4 py-2.5 text-sm border border-border rounded-xl hover:bg-muted transition-colors">
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => router.back()} className="hidden sm:block px-4 py-2.5 text-sm border border-border rounded-xl hover:bg-muted transition-colors">
               Odustani
             </button>
             {isEdit && (
@@ -304,10 +304,11 @@ export default function InvoiceForm({ initial }: Props) {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-60 transition-colors font-medium"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-60 transition-colors font-medium"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {isEdit ? 'Sačuvaj dokument' : 'Kreiraj dokument'}
+              <span className="hidden sm:inline">{isEdit ? 'Sačuvaj dokument' : 'Kreiraj dokument'}</span>
+              <span className="sm:hidden">{isEdit ? 'Sačuvaj' : 'Kreiraj'}</span>
             </button>
           </div>
         </div>
@@ -323,7 +324,7 @@ export default function InvoiceForm({ initial }: Props) {
           <div className="px-5 py-3.5 border-b border-border/50">
             <h2 className="text-sm font-semibold">Opšte</h2>
           </div>
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="p-4 sm:p-5 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Tip dokumenta</p>
               <SelectDropdown
@@ -353,30 +354,33 @@ export default function InvoiceForm({ initial }: Props) {
 
         {/* Klijent — bez overflow-hidden da dropdown ne bude clipped */}
         <div className="bg-card border border-border rounded-xl">
-          <div className="px-5 py-3.5 border-b border-border/50 flex flex-wrap items-center gap-3 rounded-t-xl">
-            <h2 className="text-sm font-semibold flex-1">Podaci o klijentu</h2>
+          <div className="px-4 sm:px-5 py-3.5 border-b border-border/50 rounded-t-xl space-y-3">
+            {/* Naslov + toggle u jednom redu */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h2 className="text-sm font-semibold">Podaci o klijentu</h2>
 
-            {/* Tip klijenta */}
-            <div className="flex rounded-lg border border-border overflow-hidden text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => setClientType('pravno')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${clientType === 'pravno' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted'}`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                Pravno lice
-              </button>
-              <button
-                type="button"
-                onClick={() => setClientType('fizicko')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${clientType === 'fizicko' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted'}`}
-              >
-                <User className="w-3.5 h-3.5" />
-                Fizičko lice
-              </button>
+              {/* Tip klijenta */}
+              <div className="flex rounded-lg border border-border overflow-hidden text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => setClientType('pravno')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${clientType === 'pravno' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted'}`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  Pravno lice
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClientType('fizicko')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${clientType === 'fizicko' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted'}`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  Fizičko lice
+                </button>
+              </div>
             </div>
 
-            {/* Pretraži postojeće korisnike */}
+            {/* Pretraži — uvek ispod, puna širina */}
             <div ref={userSearchRef} className="relative">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
@@ -384,11 +388,11 @@ export default function InvoiceForm({ initial }: Props) {
                   value={userQuery}
                   onChange={(e) => setUserQuery(e.target.value)}
                   placeholder="Pretraži korisnike..."
-                  className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 w-48"
+                  className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 w-full"
                 />
               </div>
               {userOpen && (
-                <div className="absolute right-0 top-full mt-1 w-72 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="absolute left-0 top-full mt-1 w-full sm:w-72 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
                   {userResults.map((u) => (
                     <button
                       key={u.id}
@@ -405,7 +409,7 @@ export default function InvoiceForm({ initial }: Props) {
             </div>
           </div>
 
-          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-b-xl">
+          <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 rounded-b-xl">
             <div className="sm:col-span-2">
               <p className="text-xs font-medium text-muted-foreground mb-1.5">
                 {clientType === 'pravno' ? 'Naziv firme *' : 'Ime i prezime *'}
@@ -456,14 +460,76 @@ export default function InvoiceForm({ initial }: Props) {
 
         {/* Stavke — bez overflow-hidden da product dropdown ne bude clipped */}
         <div className="bg-card border border-border rounded-xl">
-          <div className="px-5 py-3.5 border-b border-border/50 flex items-center justify-between rounded-t-xl">
+          <div className="px-4 sm:px-5 py-3.5 border-b border-border/50 flex items-center justify-between rounded-t-xl">
             <h2 className="text-sm font-semibold">Stavke</h2>
             <button onClick={addItem} className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
               <Plus className="w-3.5 h-3.5" />
               Dodaj stavku
             </button>
           </div>
-          <div className="overflow-x-auto">
+
+          {/* Mobile card view */}
+          <div className="sm:hidden divide-y divide-border">
+            {items.map((item, idx) => (
+              <div key={idx} className="p-4 space-y-3">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Opis artikla / usluge</p>
+                    <ProductSearchInput
+                      value={item.description}
+                      onChange={(v) => updateItem(idx, 'description', v)}
+                      onSelect={(p) => {
+                        const price = Number(p.salePrice ?? p.price);
+                        setItems((prev) => {
+                          const next = [...prev];
+                          next[idx] = calcItem({ ...next[idx], description: p.name, unitPrice: price });
+                          return next;
+                        });
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => removeItem(idx)}
+                    disabled={items.length === 1}
+                    className="p-3 text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Jedinica</p>
+                    <input value={item.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className={`${INPUT_SM} text-center`} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Količina</p>
+                    <input type="number" min="0" step="0.01" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className={`${INPUT_SM} text-center`} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Popust %</p>
+                    <input type="number" min="0" max="100" step="1" value={item.discount ?? 0} onChange={(e) => updateItem(idx, 'discount', e.target.value)} className={`${INPUT_SM} text-center`} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Cena (RSD)</p>
+                    <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, 'unitPrice', e.target.value)} className={`${INPUT_SM} text-right`} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Iznos</p>
+                    <div className="px-3 py-3 text-sm font-semibold text-right bg-muted/30 rounded-xl border border-border">
+                      {formatPrice(item.quantity * item.unitPrice * (1 - (item.discount ?? 0) / 100))} RSD
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/20">
@@ -494,52 +560,22 @@ export default function InvoiceForm({ initial }: Props) {
                       />
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        value={item.unit}
-                        onChange={(e) => updateItem(idx, 'unit', e.target.value)}
-                        className={`${INPUT_SM} text-center`}
-                      />
+                      <input value={item.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className={`${INPUT_SM} text-center`} />
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                        className={`${INPUT_SM} text-center`}
-                      />
+                      <input type="number" min="0" step="0.01" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className={`${INPUT_SM} text-center`} />
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) => updateItem(idx, 'unitPrice', e.target.value)}
-                        className={`${INPUT_SM} text-right`}
-                      />
+                      <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, 'unitPrice', e.target.value)} className={`${INPUT_SM} text-right`} />
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={item.discount ?? 0}
-                        onChange={(e) => updateItem(idx, 'discount', e.target.value)}
-                        className={`${INPUT_SM} text-center`}
-                      />
+                      <input type="number" min="0" max="100" step="1" value={item.discount ?? 0} onChange={(e) => updateItem(idx, 'discount', e.target.value)} className={`${INPUT_SM} text-center`} />
                     </td>
                     <td className="px-3 py-2 text-right font-medium text-foreground whitespace-nowrap pr-4">
                       {formatPrice(item.quantity * item.unitPrice * (1 - (item.discount ?? 0) / 100))}
                     </td>
                     <td className="px-2 py-2">
-                      <button
-                        onClick={() => removeItem(idx)}
-                        disabled={items.length === 1}
-                        className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors"
-                      >
+                      <button onClick={() => removeItem(idx)} disabled={items.length === 1} className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </td>
@@ -550,9 +586,9 @@ export default function InvoiceForm({ initial }: Props) {
           </div>
 
           {/* Totali */}
-          <div className="border-t border-border p-5 flex justify-end">
-            <div className="w-64 text-sm">
-              <div className="flex justify-between font-semibold text-foreground">
+          <div className="border-t border-border p-4 sm:p-5 flex justify-end">
+            <div className="w-full sm:w-64 text-sm">
+              <div className="flex justify-between font-semibold text-foreground text-base sm:text-sm">
                 <span>UKUPNO:</span>
                 <span>{formatPrice(total)} RSD</span>
               </div>
@@ -565,7 +601,7 @@ export default function InvoiceForm({ initial }: Props) {
           <div className="px-5 py-3.5 border-b border-border/50">
             <h2 className="text-sm font-semibold">Napomena (opciono)</h2>
           </div>
-          <div className="p-5">
+          <div className="p-4 sm:p-5">
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

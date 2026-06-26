@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Save, Trash2, Loader2, Plus, X, Upload,
@@ -192,6 +193,10 @@ function VariantsEditor({
   const [uploading, setUploading] = useState(false);
   const iconRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     const q = productSearch.trim();
@@ -207,6 +212,42 @@ function VariantsEditor({
     }, 350);
     return () => clearTimeout(t);
   }, [productSearch]);
+
+  useEffect(() => {
+    if (showProductResults && productResults.length > 0 && searchInputRef.current) {
+      const r = searchInputRef.current.getBoundingClientRect();
+      setDropdownPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    } else {
+      setDropdownPos(null);
+    }
+  }, [showProductResults, productResults]);
+
+  useEffect(() => {
+    if (!showProductResults || productResults.length === 0) return;
+    function updatePos() {
+      if (searchInputRef.current) {
+        const r = searchInputRef.current.getBoundingClientRect();
+        setDropdownPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
+    }
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [showProductResults, productResults.length]);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      const t = e.target as Node;
+      if (!searchContainerRef.current?.contains(t) && !dropdownRef.current?.contains(t)) {
+        setShowProductResults(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   function resetForm() {
     setFormType(null); setFormName(''); setFormColor('#ed2c18');
@@ -363,36 +404,15 @@ function VariantsEditor({
               </button>
             </div>
           ) : (
-            <div className="relative">
+            <div ref={searchContainerRef} className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <input value={productSearch}
+              <input ref={searchInputRef} value={productSearch}
                 onChange={(e) => { setProductSearch(e.target.value); if (!e.target.value) setShowProductResults(false); }}
                 onFocus={() => { if (productResults.length > 0) setShowProductResults(true); }}
                 placeholder="Pretraži proizvod..."
                 className={INPUT_SM + ' pl-9 pr-8'} />
               {searchingProducts && (
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
-              )}
-              {showProductResults && productResults.length > 0 && (
-                <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-border rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                  {productResults.map((p) => (
-                    <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => { setFormLinkedId(p.id); setFormLinkedName(p.name); setProductSearch(''); setShowProductResults(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted text-left transition-colors first:rounded-t-xl last:rounded-b-xl">
-                      {p.images?.[0] ? (
-                        <img src={p.images[0]} alt="" className="w-8 h-8 rounded-lg object-cover border border-border shrink-0" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                          <Package className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-foreground truncate">{p.name}</p>
-                        {p.sku && <p className="text-[11px] text-muted-foreground">SKU: {p.sku}</p>}
-                      </div>
-                    </button>
-                  ))}
-                </div>
               )}
             </div>
           )}
@@ -414,6 +434,7 @@ function VariantsEditor({
   }
 
   return (
+    <>
     <div className="space-y-3">
       {/* Existing variants */}
       {variants.length > 0 && (
@@ -472,10 +493,35 @@ function VariantsEditor({
         </button>
       )}
     </div>
+    {dropdownPos && typeof document !== 'undefined' && createPortal(
+      <div
+        ref={dropdownRef}
+        style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+        className="bg-card border border-border rounded-xl shadow-lg max-h-52 overflow-y-auto"
+      >
+        {productResults.map((p) => (
+          <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { setFormLinkedId(p.id); setFormLinkedName(p.name); setProductSearch(''); setShowProductResults(false); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted text-left transition-colors first:rounded-t-xl last:rounded-b-xl">
+            {p.images?.[0] ? (
+              <img src={p.images[0]} alt="" className="w-8 h-8 rounded-lg object-cover border border-border shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <Package className="w-4 h-4 text-muted-foreground" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-foreground truncate">{p.name}</p>
+              {p.sku && <p className="text-[11px] text-muted-foreground">SKU: {p.sku}</p>}
+            </div>
+          </button>
+        ))}
+      </div>,
+      document.body
+    )}
+    </>
   );
 }
-
-// ── Specifications editor ─────────────────────────────────────────────────────
 
 function SpecsEditor({
   specs,
