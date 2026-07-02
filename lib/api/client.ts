@@ -451,6 +451,8 @@ export interface ProductsParams {
   material?: string;
   finish?: string;
   usage?: string;
+  // 'active' (podrazumevano na backendu), 'inactive' ili 'all' — samo za ulogovanog admina
+  status?: 'active' | 'inactive' | 'all';
 }
 
 export interface ProductsMeta {

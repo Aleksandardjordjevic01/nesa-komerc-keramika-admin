@@ -39,6 +39,7 @@ function ProizvodiPageContent() {
   const urlSearch = searchParams.get('search') ?? '';
   const urlCategoryId = searchParams.get('categoryId') ?? '';
   const urlIsFeatured = searchParams.get('isFeatured') ?? '';
+  const urlStatus = searchParams.get('status') ?? 'all';
   const urlPage = Number(searchParams.get('page') ?? '1');
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -51,18 +52,20 @@ function ProizvodiPageContent() {
 
   const [searchInput, setSearchInput] = useState(urlSearch);
 
-  function syncUrl(overrides: { search?: string; categoryId?: string; isFeatured?: string; page?: number }) {
+  function syncUrl(overrides: { search?: string; categoryId?: string; isFeatured?: string; status?: string; page?: number }) {
     const p = new URLSearchParams();
     const next = {
       search: urlSearch,
       categoryId: urlCategoryId,
       isFeatured: urlIsFeatured,
+      status: urlStatus,
       page: urlPage,
       ...overrides,
     };
     if (next.search) p.set('search', next.search);
     if (next.categoryId) p.set('categoryId', next.categoryId);
     if (next.isFeatured) p.set('isFeatured', next.isFeatured);
+    if (next.status && next.status !== 'all') p.set('status', next.status);
     if (next.page > 1) p.set('page', String(next.page));
     router.replace(`/dashboard/proizvodi${p.toString() ? '?' + p.toString() : ''}`, { scroll: false });
   }
@@ -75,6 +78,7 @@ function ProizvodiPageContent() {
       if (urlSearch) params.search = urlSearch;
       if (urlCategoryId) params.categoryId = urlCategoryId;
       if (urlIsFeatured === 'true') params.isFeatured = true;
+      params.status = (urlStatus === 'active' || urlStatus === 'inactive') ? urlStatus : 'all';
       const res = await getProducts(params);
       setProducts(res.data);
       setMeta(res.meta);
@@ -83,7 +87,7 @@ function ProizvodiPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [urlPage, urlSearch, urlCategoryId, urlIsFeatured]);
+  }, [urlPage, urlSearch, urlCategoryId, urlIsFeatured, urlStatus]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { getAdminCategoryFlat().then(setCategories).catch(() => {}); }, []);
@@ -169,6 +173,16 @@ function ProizvodiPageContent() {
               onChange={(v) => syncUrl({ isFeatured: v, page: 1 })}
               options={[{ value: '', label: 'Svi tipovi' }, { value: 'true', label: 'Istaknuti' }]}
               className="flex-1 sm:flex-none sm:w-32"
+            />
+            <SelectDropdown
+              value={urlStatus}
+              onChange={(v) => syncUrl({ status: v, page: 1 })}
+              options={[
+                { value: 'all', label: 'Svi statusi' },
+                { value: 'active', label: 'Aktivni' },
+                { value: 'inactive', label: 'Neaktivni' },
+              ]}
+              className="flex-1 sm:flex-none sm:w-36"
             />
           </div>
         </div>
